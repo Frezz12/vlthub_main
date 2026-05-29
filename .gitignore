@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+env/
+venv/
+*.egg
+*.whl
+.pytest_cache/
+.coverage
+htmlcov/
+coverage/
+.python-version
+
+# Node
+node_modules/
+.pnpm-store/
+
+# Nuxt
+.nuxt/
+.output/
+
+# Tauri / Rust
+target/
+
+# Build output
+dist/
+.rpt2_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# Uploads (runtime data)
+uploads/
+
+# SQLite local dbs
+*.db
+*.sqlite3

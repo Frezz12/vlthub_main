@@ -1,0 +1,11 @@
+{
+  "name": "@pjasaver/api-client",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "dependencies": {
+    "@pjasaver/shared-types": "workspace:*",
+    "ofetch": "^1.4.0"
+  }
+}

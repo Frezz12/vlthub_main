@@ -1,0 +1,959 @@
+Привет, хочу создать приложение для музыкальных проектов, которое будет их сохранять их на сервере в разных версиях на подобие как работает гидхаб только для музыкальных проектов.
+Должна быть полная авториция, регистрация через почту. У каждого пользователя должен быть свой профиль (Фото профиля, Никнейм Артиста, уникальный юзернейм)
+Оно должно создавать папку где будут лежать проекты logic pro или другой daw. Пользователь должен выбрать проект и нажать сохранить версию например и он должно заархивировать этот проект и сохранить версию так же пользователь может вводить информацию о версии. Также для каждого проекта должна быть поле информации о треке например "Артист(ы), Битмейкер, BPM трека, Тональность, hz если надо, описание". Должны быть wav или mp3 вафлы самого трека если пользователь хочет добавать, они должны привызяватся к версиям проекта. Если это фит, то нужно будет выбрать артиста с кем фит через поиск или сам придумай как это лучше сделать и проект будет доступен у обоих артистов. Также можно будет поделится доступом к проекту с другим артистом или продюсером так же реши как это лучше будет сделать
+
+
+Приложение должно быть в минималистичном в стиле apple. Приложение должно быть кроссплатформенным. Думаю разробатывать на Tauri nuxt для приложения, postgres, python, fastapi, sqlalchemy для  backend.
+
+
+
+1 Оповещать автора проекта когда человек у которого есть доступ к проекта добавляет ему версию
+2 Поправить обновление проекта, добавить недостающие поля
+
+
+
+
+Белые разделительные полоски на сайдбаре и других местах слишком яркие сделай их более тусклыми
+
+
+
+
+
+# ?? Music Project Manager — Полное техническое задание (без технической части)
+
+## 1. Общее описание продукта
+
+### 1.1 Название проекта
+**MusicProject Manager** (рабочее название) — десктопное приложение для музыкантов, продюсеров и звукорежиссёров, позволяющее сохранять версии музыкальных проектов на сервере, управлять коллаборациями и отслеживать историю изменений по аналогии с Git, но адаптированное для DAW (Digital Audio Workstation).
+
+### 1.2 Цель продукта
+Создать удобный инструмент для контроля версий музыкальных проектов, упростить совместную работу над треками и обеспечить надёжное хранение всех этапов создания музыки.
+
+### 1.3 Целевая аудитория
+- Музыкальные продюсеры (от начинающих до профессионалов)
+- Битмейкеры
+- Звукорежиссёры и сведение-мастеринг инженеры
+- Вокалисты и инструменталисты, участвующие в записях
+- Музыкальные коллективы и лейблы
+
+### 1.4 Платформа
+- **Десктопное приложение**: Windows 10/11, macOS 11+
+- **Кроссплатформенность**: Единый код для обеих ОС
+- **Стиль**: Минималистичный, в духе Apple (чистые линии, много воздуха, прозрачность, плавные анимации)
+
+---
+
+## 2. Функциональные требования
+
+### 2.1 Авторизация и управление профилем
+
+#### 2.1.1 Регистрация
+- Регистрация по email
+- Подтверждение email через ссылку в письме
+- Поля регистрации:
+  - Email
+  - Пароль (минимум 8 символов, хотя бы одна цифра)
+  - Никнейм артиста (отображаемое имя)
+  - Уникальный юзернейм (латиница, цифры, точка, без пробелов)
+- После регистрации — автоматический вход
+
+#### 2.1.2 Вход в аккаунт
+- Вход по email + пароль
+- Кнопка "Забыли пароль?" — восстановление через email
+- Запоминать сессию (функция "Оставаться в системе")
+
+#### 2.1.3 Профиль пользователя
+- **Фото профиля**: загрузка изображения (JPG, PNG, до 5 MB), обрезка под круг
+- **Никнейм артиста**: можно менять
+- **Юзернейм**: можно менять, но с проверкой уникальности
+- **Биография**: текстовое поле (до 500 символов)
+- **Социальные сети**: ссылки на Instagram, SoundCloud, YouTube (опционально)
+- **Статистика**: количество проектов, версий, коллабораций
+- **Настройки приватности**: профиль может быть публичным или только по ссылке
+
+#### 2.1.4 Выход из аккаунта
+- Кнопка выхода в настройках
+- При выходе — очистка локального кэша
+
+### 2.2 Работа с проектами
+
+#### 2.2.1 Создание проекта
+Пользователь может создать проект двумя способами:
+
+**Способ 1 — Добавление существующего DAW проекта:**
+- Нажать кнопку "Добавить проект"
+- Выбрать папку с проектом DAW (Logic Pro, Ableton, FL Studio, Cubase, REAPER)
+- Приложение автоматически определяет DAW и извлекает метаданные (BPM, тональность, если возможно)
+- Заполнить информацию о треке (см. п. 2.3)
+
+**Способ 2 — Создание нового проекта в приложении:**
+- Нажать "Создать проект"
+- Указать название
+- Позже привязать к нему папку проекта DAW
+
+#### 2.2.2 Информация о проекте (карточка трека)
+Для каждого проекта хранится следующая информация:
+
+| Поле | Тип | Обязательное | Пояснение |
+|------|-----|--------------|-----------|
+| Название трека | Текст | Да | Например, "Summer Vibes" |
+| Артист(ы) | Список пользователей | Да | Основной исполнитель + приглашённые |
+| Битмейкер | Список пользователей | Нет | Кто сделал бит |
+| BPM | Число (60-200) | Нет | Темп трека |
+| Тональность | Строка (A#m, Cmaj) | Нет | Музыкальная тональность |
+| Sample Rate | Выбор (44.1/48/96 кГц) | Нет | Частота дискретизации |
+| Описание | Текст (до 2000 символов) | Нет | О чём трек, вдохновение и т.д. |
+| Обложка | Изображение | Нет | Можно загрузить обложку трека |
+| Теги | Список строк | Нет | #hiphop #edm #lofi и т.д. |
+
+#### 2.2.3 Список проектов
+Главный экран приложения показывает:
+- Список всех проектов пользователя (включая фиты, где он участник)
+- Карточка проекта содержит:
+  - Обложку (или заглушку)
+  - Название трека
+  - Никнейм артиста
+  - BPM и тональность (если указаны)
+  - Количество версий
+  - Дата последнего изменения
+  - Значок DAW (Logic, Ableton и т.д.)
+- Поиск по названию, артистам, тегам
+- Фильтрация: "Мои проекты", "Фиты", "Доступные мне", "Архив"
+- Сортировка: по дате, по названию, по количеству версий
+
+#### 2.2.4 Редактирование проекта
+- Изменять информацию о треке можно в любой момент
+- История изменений метаданных НЕ хранится (только версии проекта)
+
+### 2.3 Система версий (Git-подобная)
+
+#### 2.3.1 Создание новой версии
+Процесс сохранения версии:
+
+1. Пользователь открывает карточку проекта
+2. Нажимает кнопку **"Сохранить новую версию"**
+3. Открывается модальное окно с полями:
+   - **Название версии** (по умолчанию: "Версия 1.0.0 — дата время")
+   - **Описание изменений** (что сделано нового, что исправлено)
+   - **Загрузить аудио-превью** (WAV или MP3, опционально)
+   - **Чекбокс**: "Сделать эту версию текущей"
+4. Приложение:
+   - Копирует папку проекта во временную папку
+   - Очищает от мусорных файлов (кэш, временные файлы)
+   - Архивирует в ZIP
+   - Отображает прогресс загрузки
+   - Отправляет на сервер
+5. После загрузки — версия отображается в истории
+
+#### 2.3.2 История версий
+- Временная шкала всех версий проекта (похожа на GitHub Timeline)
+- Каждая версия отображается как карточка с:
+  - Номером версии (автоинкремент)
+  - Названием версии
+  - Датой создания
+  - Кем создана (никнейм)
+  - Описанием изменений
+  - Наличием аудио-превью (значок ??)
+  - Кнопками: **Скачать**, **Прослушать**, **Сделать текущей**
+- Возможность развернуть версию и увидеть:
+  - Полное описание
+  - Список файлов в архиве (только имена)
+  - Размер архива
+
+#### 2.3.3 Управление версиями
+- **Скачать версию**: получить ZIP-архив проекта
+- **Удалить версию**: только владелец проекта (с подтверждением)
+- **Сравнение версий**: выделить две версии и увидеть, какие файлы изменились (имена и размеры)
+- **Комментарии к версии**: участники проекта могут оставлять текстовые комментарии к конкретной версии
+
+#### 2.3.4 Аудио-превью
+- Пользователь может загрузить WAV или MP3 при сохранении версии
+- Формат превью: конвертируется в MP3 192 kbps для быстрой загрузки
+- Превью привязывается к конкретной версии
+- Прослушивание прямо в приложении со встроенным плеером:
+  - Play/Pause
+  - Progress bar
+  - Отображение времени
+  - Визуализация (простая спектрограмма)
+- Можно загрузить несколько превью для одной версии (например, полная версия и инструментал)
+
+### 2.4 Коллаборации и фиты
+
+#### 2.4.1 Добавление фит-артиста
+При создании или редактировании проекта:
+
+1. Нажать "Добавить артиста"
+2. Выбрать тип:
+   - **Зарегистрированный пользователь** (поиск по юзернейму или email)
+   - **Внешний артист** (просто ввести имя)
+3. Указать роль:
+   - Вокалист
+   - Продюсер
+   - Автор текста
+   - Инструменталист
+   - Сведение
+   - Мастеринг
+4. Если выбран зарегистрированный пользователь:
+   - Отправляется уведомление (в приложении и на email)
+   - Артист может принять или отклонить фит
+   - После принятия — проект появляется в его списке "Фиты"
+
+#### 2.4.2 Управление фитами
+- Владелец проекта может добавить/удалить фит-артистов в любой момент
+- Удалённый фит-артист теряет доступ к проекту
+- Фит-артист может выйти из фита самостоятельно (проект остаётся у владельца)
+
+#### 2.4.3 Общий доступ (Sharing)
+Владелец проекта может поделиться доступом с другими пользователями:
+
+**Роли доступа:**
+
+| Роль | Возможности |
+|------|-------------|
+| **Владелец** | Полный контроль: удаление проекта, передача владения, управление доступом |
+| **Редактор** | Сохранять новые версии, загружать превью, редактировать метаданные, оставлять комментарии |
+| **Комментатор** | Только просматривать версии, слушать превью, оставлять комментарии |
+| **Зритель** | Только просматривать историю версий и слушать превью |
+
+**Способы поделиться:**
+- **По email**: ввести email пользователя, выбрать роль, отправить приглашение
+- **По ссылке**: сгенерировать публичную ссылку с ограниченным доступом (гостевая ссылка с паролем, истекает через N дней)
+
+### 2.5 Уведомления
+
+#### 2.5.1 Типы уведомлений
+
+| Событие | Кому | Способ |
+|---------|------|--------|
+| Приглашение в фит | Приглашённому артисту | In-app + Email |
+| Принятие фита | Владельцу проекта | In-app |
+| Новая версия проекта | Всем участникам проекта | In-app (опционально email) |
+| Комментарий к версии | Всем участникам | In-app |
+| Доступ предоставлен | Пользователю | Email |
+| Версия скачана | Владельцу (логирование) | Только in-app |
+
+#### 2.5.2 Настройки уведомлений
+Каждый пользователь может настроить:
+- Получать email-уведомления или только in-app
+- Отключить определённые типы уведомлений
+
+### 2.6 Поиск и навигация
+
+#### 2.6.1 Глобальный поиск
+- Поиск по всем проектам (своим и доступным)
+- Поиск по: названию трека, артистам, тегам, описанию
+- Фильтры: по DAW, по дате, по роли (владелец/фит)
+
+#### 2.6.2 Просмотр профилей других пользователей
+- При клике на никнейм артиста — открывается публичный профиль
+- В публичном профиле видно:
+  - Аватар, никнейм, биографию
+  - Список публичных проектов (если пользователь разрешил)
+  - Количество коллабораций
+
+### 2.7 Настройки приложения
+
+#### 2.7.1 Общие настройки
+- **Путь к папке проектов**: где приложение ищет DAW проекты
+- **Автоматическое сканирование**: сканировать ли папку при запуске
+- **Папка временных файлов**: куда сохранять архивы перед загрузкой
+- **Очищать временные файлы после загрузки**: да/нет
+- **Автосохранение черновиков версий**: да/нет
+
+#### 2.7.2 Настройки интерфейса
+- Тема: светлая / тёмная / система
+- Размер шрифта: маленький / средний / большой
+- Показывать визуализацию аудио: да/нет
+
+#### 2.7.3 Настройки синхронизации
+- Автоматически загружать новые версии (фоновый режим)
+- Ограничение скорости загрузки
+
+### 2.8 Хранилище и лимиты
+
+*На старте можно сделать всё бесплатным, а Pro ввести позже при масштабировании*
+
+---
+
+## 3. Нефункциональные требования
+
+### 3.1 Производительность
+- Запуск приложения: не более 3 секунд
+- Открытие списка проектов: менее 1 секунды
+- Архивирование проекта 1 GB: не более 30 секунд (на современном ПК)
+- Загрузка на сервер на скорости 100 Mbps: 1 GB за ~2 минуты
+- Плеер аудио-превью: задержка воспроизведения менее 0.5 секунды
+
+### 3.2 Надёжность
+- При обрыве интернета — дозагрузка чанков с места остановки
+- Автоматическое восстановление сессии после перезапуска
+- Проверка целостности архива (SHA256) после загрузки
+
+### 3.3 Безопасность
+- Пароли хешируются (bcrypt)
+- JWT токены с ограниченным сроком жизни (15 минут, refresh токен 7 дней)
+- Все запросы к API через HTTPS
+- Загрузка файлов только авторизованных пользователей
+- Подписанные URL для скачивания (действуют 1 час)
+
+### 3.4 UX/UI требования (стиль Apple)
+
+#### 3.4.1 Цветовая схема
+- **Фон**: #F5F5F7 (светлая тема), #1C1C1E (тёмная тема)
+- **Акцент**: #007AFF (синий Apple)
+- **Текст**: #1D1D1F (светлая), #FFFFFF (тёмная)
+- **Вторичный текст**: #86868B
+- **Границы**: #E5E5EA (светлая), #38383A (тёмная)
+
+#### 3.4.2 Типографика
+- Системный шрифт Apple: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto
+- Заголовки: SemiBold 20-28pt
+- Основной текст: Regular 13-15pt
+- Мелкий текст: Regular 11-12pt
+
+#### 3.4.3 Компоненты
+- **Кнопки**: скруглённые (8px), эффект нажатия (анимация), прозрачные или залитые
+- **Карточки проектов**: фон с размытием (backdrop-filter: blur(20px)), тень 0 2px 8px rgba(0,0,0,0.05)
+- **Модальные окна**: центрированные, скруглённые углы 12px, затемнение фона
+- **Прогресс-бары**: тонкие (2px), акцентный цвет с анимацией
+- **Иконки**: SF Symbols или Feather Icons (тонкие, минималистичные)
+
+#### 3.4.4 Анимации
+- Плавное появление элементов (fade in, 200ms)
+- Пружинные эффекты при переключении вкладок
+- Пульсация кнопки загрузки во время процесса
+
+#### 3.4.5 Макеты экранов
+
+**Главный экран (дашборд):**
+```
+????????????????????????????????????????????????????????????????
+? [Лого]   Мои проекты   Коллаборации   [Аватар]               ?
+????????????????????????????????????????????????????????????????
+?                                                              ?
+? ?? Поиск по проектам...                    [Фильтр] [+]      ?
+?                                                              ?
+? ???????????????  ???????????????  ???????????????           ?
+? ? ?? Project 1 ?  ? ?? Project 2 ?  ? ?? Project 3 ?           ?
+? ? Artist name ?  ? Artist name ?  ? Artist name ?           ?
+? ? 128 BPM • Cm ?  ? 95 BPM • Am  ?  ? 140 BPM • Em ?           ?
+? ? 5 версий    ?  ? 2 версии    ?  ? 12 версий   ?           ?
+? ???????????????  ???????????????  ???????????????           ?
+?                                                              ?
+? Недавние версии:                                            ?
+? • Project 1 — v2.0 "Сведение" (2 часа назад)               ?
+? • Project 2 — v1.0 "Демо" (вчера)                          ?
+????????????????????????????????????????????????????????????????
+```
+
+**Экран проекта:**
+```
+????????????????????????????????????????????????????????????????
+? ? Назад    Summer Vibes                    [?] [Сохранить]  ?
+????????????????????????????????????????????????????????????????
+?                                                              ?
+? ??????????????????????                                      ?
+? ?    Обложка         ?  Artist: DJ Smith                     ?
+? ?                    ?  Feat: MC Flow                        ?
+? ??????????????????????  BPM: 128 • Cm • 44.1 kHz            ?
+?                                                              ?
+? [Основная информация] [История версий] [Участники]           ?
+?                                                              ?
+? ???????????????????????????????????????????????????????    ?
+? ? ?? ВЕРСИИ ПО ВРЕМЕНИ                                ?    ?
+? ?                                                     ?    ?
+? ? ?????????????????                                   ?    ?
+? ? ?   ?   ?   ?   ??? v1.4 "Финал" (сегодня)          ?    ?
+? ? ?   ?   ?   ??????? v1.3 "Сведение" (вчера)         ?    ?
+? ? ?   ?   ??????????? v1.2 "Вокал" (3 дня назад)      ?    ?
+? ? ?   ??????????????? v1.1 "Аранжировка" (неделю)     ?    ?
+? ? ??????????????????? v1.0 "Демо" (2 недели)          ?    ?
+? ???????????????????????????????????????????????????????    ?
+????????????????????????????????????????????????????????????????
+```
+
+---
+
+## 4. Сценарии использования (User Stories)
+
+### 4.1 Сохранение первой версии проекта
+1. Пользователь открывает приложение, авторизуется
+2. Нажимает "Добавить проект", выбирает папку Logic Pro проекта
+3. Приложение находит проект, показывает "Новый трек: Untitled"
+4. Пользователь заполняет: название "Summer Vibes", BPM 128, тональность Cm
+5. Нажимает "Сохранить версию"
+6. Пишет описание: "Первый набросок, драм-партия готова"
+7. Нажимает "Сохранить"
+8. Приложение архивирует и загружает проект
+9. Появляется уведомление: "Версия 1.0 сохранена"
+
+### 4.2 Добавление фит-артиста
+1. Продюсер создал проект, хочет добавить вокалистку
+2. Нажимает "Добавить артиста", ищет "jazz_singer"
+3. Находит профиль, выбирает роль "Вокалист", отправляет приглашение
+4. Вокалистка получает email: "DJ Smith приглашает вас в проект Summer Vibes"
+5. Заходит в приложение, принимает приглашение
+6. Проект появляется в её списке "Коллаборации"
+7. Она может слушать превью версий и скачивать проект
+
+### 4.3 Совместная работа над версией
+1. Продюсер сохраняет версию 1.2 с вокалом
+2. Вокалистка получает уведомление: "Новая версия проекта"
+3. Слушает превью в приложении
+4. Оставляет комментарий: "В припеве нужно поправить тайминг"
+5. Продюсер видит комментарий, сохраняет версию 1.3 с исправлениями
+
+### 4.4 Восстановление старой версии
+1. Продюсер случайно испортил проект в DAW
+2. Открывает приложение, находит проект
+3. Переходит в "История версий"
+4. Находит версию 1.5 от прошлой недели
+5. Нажимает "Скачать"
+6. Распаковывает архив и открывает в Logic Pro
+
+---
+
+## 5. Ограничения и допущения
+
+### 5.1 Поддерживаемые DAW (на старте)
+| DAW | Расширение проекта | Полная поддержка | Извлечение метаданных |
+|-----|-------------------|------------------|----------------------|
+| Logic Pro | .logicx | ? Да | ? BPM, тональность |
+| Ableton Live | .als | ? Да | ? BPM |
+| FL Studio | .flp | ? Да | ? Не читается |
+| Cubase | .cpr | ? Да | ? Не читается |
+| REAPER | .rpp | ? Да | ? BPM |
+| Studio One | .song | ?? Частично | ? |
+| Bitwig | .bwproject | ?? Частично | ? |
+
+*Для FL Studio и Cubase метаданные пользователь заполняет вручную*
+
+### 5.2 Ограничения по файлам
+- Максимальный размер одной версии: 5 GB (Pro), 250 MB (Free)
+- Максимальное количество версий на проект: безлимит
+- Максимальный размер аудио-превью: 50 MB (конвертируется в MP3)
+
+### 5.3 Сетевое соединение
+- Для загрузки/скачивания версий требуется интернет
+- Просмотр списка проектов возможен в офлайн-режиме (только метаданные, без скачивания)
+- При восстановлении соединения — автоматическая синхронизация
+
+---
+
+## 6. Этапы разработки (MVP)
+
+### Этап 1 — Базовая функциональность (4 недели)
+- [ ] Авторизация и регистрация
+- [ ] Создание и редактирование профиля
+- [ ] Добавление существующего DAW проекта
+- [ ] Ручное заполнение метаданных трека
+- [ ] Сканирование локальной файловой системы
+- [ ] Архивирование и загрузка первой версии
+- [ ] Просмотр списка проектов
+
+### Этап 2 — Версионирование и коллаборации (4 недели)
+- [ ] История версий (временная шкала)
+- [ ] Загрузка аудио-превью
+- [ ] Встроенный аудиоплеер
+- [ ] Приглашение фит-артистов
+- [ ] Управление доступом (роли)
+- [ ] Система уведомлений in-app
+
+### Этап 3 — Полировка и релиз (2 недели)
+- [ ] Поиск и фильтрация проектов
+- [ ] Офлайн-режим и синхронизация
+- [ ] Комментарии к версиям
+- [ ] Настройки приложения
+- [ ] UI в стиле Apple (анимации, темы)
+- [ ] Дозагрузка чанков при обрыве
+- [ ] Бета-тестирование (10-20 пользователей)
+
+### Этап 4 — После релиза (будущие итерации)
+- [ ] Сравнение версий (diff файлов)
+- [ ] Визуализация спектрограммы
+- [ ] Telegram/Discord бот для уведомлений
+- [ ] Экспорт проекта в MP3/WAV
+- [ ] Плагин для DAW (сохранить версию изнутри Logic Pro)
+- [ ] Мобильное приложение (только просмотр и прослушка)
+
+---
+
+## 7. Критерии успеха MVP
+
+- [ ] Пользователь может сохранить версию Logic Pro проекта на сервер менее чем за 3 минуты (для проекта 500 MB)
+- [ ] Приглашённый артист получает доступ и может скачать проект
+- [ ] Приложение запускается и работает на Windows 10/11 и macOS 12+
+- [ ] UI получает оценку "интуитивно понятный" у 80% тестировщиков
+- [ ] Ни один пользователь не потерял данные при обрыве загрузки (тест: выключить WiFi на 10 секунд)
+
+---
+
+## 8. Бизнес-метрики (для будущего)
+
+- DAU/MAU (ежедневные/ежемесячные активные пользователи)
+- Количество сохранённых версий в день
+- Средний размер загружаемого проекта
+- Конверсия из бесплатного в Pro тариф
+- Retention: % пользователей, вернувшихся через 30 дней
+
+---
+
+## 9. Риски и их митигация
+
+| Риск | Вероятность | Влияние | Митигация |
+|------|-------------|---------|-----------|
+| DAW обновят формат проекта и приложение перестанет их читать | Средняя | Высокое | Держать модуль определения DAW отдельно, легко обновлять |
+| Пользователи не хотят загружать проекты в облако из-за безопасности | Высокая | Высокое | Шифрование на клиенте перед отправкой, возможность локального хранения |
+| Медленная загрузка больших проектов | Средняя | Средняя | Чанковая загрузка, фоновый режим, прогресс-бар |
+| Конкуренция со Splice Studio, Blend | Средняя | Средняя | Упор на простоту и российский рынок (быстрый сервер в РФ) |
+
+---
+
+## 10. Дополнительные идеи (nice to have)
+
+- **AI генерация тегов** на основе анализа WAV превью (жанр, инструменты)
+- **Шаблоны проектов** — сохранить текущий проект как шаблон для будущих треков
+- **Рейтинг версий** — лайки от участников проекта
+- **Автоматический бэкап** перед закрытием DAW (background процесс)
+- **Встроенный чат** внутри проекта для обсуждения
+- **Статистика активности** — сколько времени работал над проектом (интеграция с DAW, сложно)
+
+---
+
+Это полное ТЗ готово для разработки. После утверждения можно переходить к технической части: выбору технологий, проектированию базы данных, API эндпоинтов и архитектуре приложения.
+
+**Готов ответить на любые вопросы по ТЗ и уточнить детали!**
+
+2. Клиентская часть (Desktop App)
+2.1 Tauri (Rust Core)
+Версия: Tauri 2.x
+Почему Tauri:
+* Минимальный размер приложения (меньше Electron в 10 раз)
+* Высокая производительность (Rust)
+* Безопасный доступ к файловой системе
+* Нативная работа с системой
+2.2 Nuxt 3 (Frontend UI)
+Версия: Nuxt 3.12
+Почему Nuxt:
+* Vue 3 Composition API (чистый код)
+* Автоматическая оптимизация
+* SSG/SSR не нужны, но удобная структура
+* Большое количество модулей
+3. Бэкенд часть (VPS)
+3.1 FastAPI (Python)
+Почему FastAPI:
+* Асинхронность из коробки
+* Автоматическая документация (Swagger/ReDoc)
+* Pydantic для валидации данных
+* Отличная производительность (наравне с Node.js)
+* 3.2 PostgreSQL (база данных)
+* Версия: PostgreSQL 16
+* Схема базы данных:
+3.4 Redis + RQ (Очереди задач)
+Версия: Redis
+Использование Redis:
+1. Кэш: Токены, метаданные проектов (TTL 5 минут)
+2. Очереди задач (RQ):
+o high: архивация, конвертация аудио
+o default: отправка email, генерация превью
+o low: очистка временных файлов, обновление статистики
+
+FrezzY, [25.05.2026 17:05]
+Архитектурный план MusicProject Manager
+1. Структура монорепозитория
+pjasaver/
+??? apps/
+?   ??? desktop/                    # Tauri 2.x + Nuxt 3
+?   ?   ??? src-tauri/              # Rust core
+?   ?   ?   ??? src/
+?   ?   ?   ?   ??? main.rs
+?   ?   ?   ?   ??? lib.rs          # Tauri commands
+?   ?   ?   ?   ??? commands/       # File ops, archiving
+?   ?   ?   ?   ??? daemon/         # Background watcher
+?   ?   ?   ??? tauri.conf.json
+?   ?   ?   ??? capabilities/
+?   ?   ??? app/                    # Nuxt 3 frontend
+?   ?   ?   ??? pages/
+?   ?   ?   ??? components/
+?   ?   ?   ??? composables/
+?   ?   ?   ??? layouts/
+?   ?   ?   ??? stores/             # Pinia
+?   ?   ?   ??? server/api/         # BFF proxy routes
+?   ?   ?   ??? nuxt.config.ts
+?   ?   ?   ??? app.config.ts
+?   ?   ??? package.json
+?   ??? backend/                    # FastAPI
+?       ??? app/
+?       ?   ??? api/                # Route handlers
+?       ?   ??? core/               # Config, security, DB
+?       ?   ??? models/             # SQLAlchemy models
+?       ?   ??? schemas/            # Pydantic schemas
+?       ?   ??? services/           # Business logic
+?       ?   ??? tasks/              # RQ job functions
+?       ??? alembic/                # Migrations
+?       ??? Dockerfile
+?       ??? pyproject.toml
+??? packages/
+?   ??? shared-types/               # TS types (API contracts)
+?   ??? api-client/                  # Generated TS API client
+??? docker-compose.yml              # Postgres + Redis + Backend
+??? .github/workflows/              # CI/CD
+??? pnpm-workspace.yaml
+??? package.json
+2. Database Schema (16 таблиц)
+users                    version_audio_previews
+?? id (UUID PK)          ?? id (UUID PK)
+?? email                 ?? version_id ? versions
+?? password_hash         ?? file_path
+?? nickname              ?? title
+?? username              ?? duration
+?? bio                   ?? file_size
+?? avatar_url            ?? created_at
+?? is_public
+?? is_email_confirmed    version_comments
+?? created_at            ?? id (UUID PK)
+?? updated_at            ?? version_id ? versions
+                         ?? user_id ? users
+social_links             ?? text
+?? id (UUID PK)          ?? created_at
+?? user_id ? users
+?? platform              notifications
+?? url                   ?? id (UUID PK)
+                         ?? user_id ? users
+projects                 ?? type
+?? id (UUID PK)          ?? message
+?? owner_id ? users      ?? is_read
+?? title                 ?? related_project_id
+?? bpm                   ?? related_version_id
+?? key                   ?? created_at
+?? sample_rate
+?? description           refresh_tokens
+?? cover_url             ?? id (UUID PK)
+?? daw_type              ?? user_id ? users
+?? is_archived           ?? token_hash
+?? created_at            ?? expires_at
+?? updated_at            ?? created_at
+project_tags             email_confirmations
+?? id (UUID PK)          ?? id (UUID PK)
+?? project_id ? projects ?? user_id ? users
+?? tag                   ?? token_hash
+                         ?? expires_at
+project_collaborators    ?? created_at
+?? id (UUID PK)
+?? project_id ? projects user_notification_settings
+?? user_id ? users       ?? id (UUID PK)
+?? role                  ?? user_id ? users
+?? status                ?? notification_type
+?? invited_by ? users    ?? email_enabled
+?? created_at            ?? in_app_enabled
+?? updated_at
+project_external_artists
+?? id (UUID PK)
+?? project_id ? projects
+?? name
+?? role
+project_access
+?? id (UUID PK)
+?? project_id ? projects
+?? user_id ? users
+?? role                  # owner/editor/commentator/viewer
+?? created_at
+share_links
+?? id (UUID PK)
+?? project_id ? projects
+?? token (UNIQUE)
+?? password_hash
+?? expires_at
+?? role
+?? created_at
+versions
+?? id (UUID PK)
+?? project_id ? projects
+?? version_number (INT)
+?? title
+?? description
+?? created_by ? users
+?? file_path
+?? file_size
+?? file_hash (SHA256)
+?? is_current
+?? created_at
+?? updated_at
+version_files
+?? id (UUID PK)
+?? version_id ? versions
+?? file_name
+?? file_size
+3. API Endpoints Map
+Auth:
+
+FrezzY, [25.05.2026 17:05]
+POST   /api/v1/auth/register
+  POST   /api/v1/auth/login
+  POST   /api/v1/auth/refresh
+  POST   /api/v1/auth/logout
+  POST   /api/v1/auth/forgot-password
+  POST   /api/v1/auth/reset-password
+  GET    /api/v1/auth/confirm-email/:token
+Users:
+  GET    /api/v1/users/me
+  PATCH  /api/v1/users/me
+  POST   /api/v1/users/me/avatar
+  PATCH  /api/v1/users/me/social-links
+  GET    /api/v1/users/:username
+  PATCH  /api/v1/users/me/settings/notifications
+Projects:
+  GET    /api/v1/projects          # list + filters + search + pagination
+  POST   /api/v1/projects
+  GET    /api/v1/projects/:id
+  PATCH  /api/v1/projects/:id
+  DELETE /api/v1/projects/:id
+  POST   /api/v1/projects/:id/collaborators
+  PATCH  /api/v1/projects/:id/collaborators/:userId
+  DELETE /api/v1/projects/:id/collaborators/:userId
+  POST   /api/v1/projects/:id/access
+  PATCH  /api/v1/projects/:id/access/:userId
+  DELETE /api/v1/projects/:id/access/:userId
+  POST   /api/v1/projects/:id/share-links
+  DELETE /api/v1/projects/:id/share-links/:linkId
+Versions:
+  POST   /api/v1/projects/:id/versions
+  GET    /api/v1/projects/:id/versions
+  GET    /api/v1/projects/:id/versions/:verId
+  DELETE /api/v1/projects/:id/versions/:verId
+  PATCH  /api/v1/projects/:id/versions/:verId/current
+  POST   /api/v1/projects/:id/versions/:verId/download  # signed URL
+  GET    /api/v1/projects/:id/versions/:verId/files
+  POST   /api/v1/projects/:id/versions/compare?ver1=X&ver2=Y
+Audio Previews:
+  POST   /api/v1/projects/:id/versions/:verId/previews
+  DELETE /api/v1/projects/:id/versions/:verId/previews/:previewId
+  GET    /api/v1/projects/:id/versions/:verId/previews/:previewId/stream
+Comments:
+  GET    /api/v1/projects/:id/versions/:verId/comments
+  POST   /api/v1/projects/:id/versions/:verId/comments
+  DELETE /api/v1/projects/:id/versions/:verId/comments/:commentId
+Notifications:
+  GET    /api/v1/notifications
+  PATCH  /api/v1/notifications/:id/read
+  PATCH  /api/v1/notifications/read-all
+Search:
+  GET    /api/v1/search?q=&type=&daw=&role=&page=&limit=
+4. Tauri (Rust) Commands
+// File System
+#[tauri::command] fn scan_directory(path: String) -> Vec<ProjectFile>
+#[tauri::command] fn archive_project(path: String, dest: String) -> Result<String>
+#[tauri::command] fn extract_archive(path: String, dest: String) -> Result<()>
+#[tauri::command] fn get_file_info(path: String) -> FileInfo
+#[tauri::command] fn calculate_sha256(path: String) -> String
+#[tauri::command] fn clean_temp_files(paths: Vec<String>) -> Result<()>
+// System Dialogs
+#[tauri::command] fn pick_folder() -> Option<String>
+#[tauri::command] fn save_file_dialog(default_name: String) -> Option<String>
+// Upload/Download (chunked)
+#[tauri::command] fn upload_chunk(url: String, chunk_path: String, offset: u64) -> Result<()>
+#[tauri::command] fn download_chunk(url: String, dest: String, range: (u64, u64)) -> Result<()>
+#[tauri::command] fn resume_upload(upload_id: String, chunk_path: String) -> Result<u64>
+// Background
+#[tauri::command] fn start_daw_watcher(path: String) -> Result<()>
+#[tauri::command] fn stop_daw_watcher() -> Result<()>
+5. FastAPI Backend Architecture
+app/
+??? main.py               # FastAPI app, middleware, lifespan
+??? core/
+?   ??? config.py         # Settings (pydantic-settings)
+?   ??? database.py       # Async SQLAlchemy engine/session
+?   ??? security.py       # JWT, password hashing
+?   ??? redis.py          # Redis client
+?   ??? rq.py             # RQ queue setup
+?   ??? storage.py        # Local FS file operations
+?   ??? dependencies.py   # FastAPI dependency injection
+??? models/               # SQLAlchemy 2.0 models
+?   ??? __init__.py
+?   ??? user.py
+?   ??? project.py
+?   ??? version.py
+?   ??? notification.py
+?   ??? auth.py
+??? schemas/              # Pydantic v2 schemas
+?   ??? __init__.py
+?   ??? auth.py
+?   ??? user.py
+?   ??? project.py
+?   ??? version.py
+?   ??? notification.py
+??? api/
+?   ??? __init__.py
+?   ??? router.py         # Main router aggregator
+?   ??? v1/
+?   ?   ??? auth.py
+?   ?   ??? users.py
+?   ?   ??? projects.py
+?   ?   ??? versions.py
+?   ?   ??? notifications.py
+
+FrezzY, [25.05.2026 17:05]
+?   ?   ??? search.py
+?   ??? deps.py           # Route-level dependencies
+??? services/             # Business logic layer
+?   ??? auth_service.py
+?   ??? user_service.py
+?   ??? project_service.py
+?   ??? version_service.py
+?   ??? notification_service.py
+?   ??? storage_service.py
+?   ??? search_service.py
+??? tasks/                # RQ job functions
+    ??? archive.py
+    ??? audio.py
+    ??? email.py
+    ??? cleanup.py
+6. Nuxt 3 Frontend Page Tree
+pages/
+??? index.vue                 # Dashboard (project list)
+??? login.vue                 # Login
+??? register.vue              # Registration
+??? forgot-password.vue
+??? reset-password.vue
+??? projects/
+?   ??? new.vue               # Create project wizard
+?   ??? [id]/
+?       ??? index.vue         # Project detail / version timeline
+?       ??? info.vue          # Edit metadata
+?       ??? members.vue       # Collaborators & access
+?       ??? versions/
+?           ??? [verId].vue   # Single version detail + comments
+??? profile/
+?   ??? [username].vue        # Public user profile
+??? settings/
+?   ??? profile.vue           # Edit profile
+?   ??? appearance.vue        # Theme, font
+?   ??? notifications.vue     # Notification prefs
+?   ??? app.vue               # App settings
+??? notifications.vue         # Notification center
+Key Components:
+components/
+??? layout/
+?   ??? AppHeader.vue         # Top bar: logo, search, avatar
+?   ??? AppSidebar.vue        # Side nav
+?   ??? AppShell.vue          # Main layout wrapper
+??? auth/
+?   ??? LoginForm.vue
+?   ??? RegisterForm.vue
+??? projects/
+?   ??? ProjectCard.vue       # Card in grid
+?   ??? ProjectList.vue       # Grid/list view
+?   ??? ProjectForm.vue       # Create/edit form
+?   ??? ProjectHeader.vue     # Project detail header
+?   ??? ProjectFilter.vue     # Filter bar
+??? versions/
+?   ??? VersionTimeline.vue   # Timeline visualization
+?   ??? VersionCard.vue       # Version in timeline
+?   ??? VersionCreateModal.vue
+?   ??? VersionCompare.vue
+??? audio/
+?   ??? AudioPlayer.vue       # Embedded player
+?   ??? Waveform.vue          # Simple spectrogram
+??? comments/
+?   ??? CommentList.vue
+?   ??? CommentForm.vue
+??? notifications/
+?   ??? NotificationList.vue
+??? ui/                       # Primitives
+?   ??? Button.vue
+?   ??? Input.vue
+?   ??? Select.vue
+?   ??? Modal.vue
+?   ??? Badge.vue
+?   ??? Progress.vue
+?   ??? Skeleton.vue
+?   ??? Avatar.vue
+?   ??? Dropdown.vue
+?   ??? Toast.vue
+??? icons/                    # SVG icon components
+7. Auth Flow
+Register:
+  Client ? POST /auth/register
+  Server ? hash password, create user, send confirmation email
+  Server ? return access_token + refresh_token + user
+  Client ? store tokens (memory + httpOnly cookie for refresh)
+Login:
+  Client ? POST /auth/login
+  Server ? verify credentials, return tokens
+  Client ? redirect to dashboard
+Token Refresh:
+  Client ? interceptor detects 401
+  Client ? POST /auth/refresh (sends refresh_token in cookie/body)
+  Server ? verify refresh token, issue new access_token
+  Client ? retry original request
+Logout:
+  Client ? POST /auth/logout
+  Server ? delete refresh token from DB
+  Client ? clear local tokens ? redirect to login
+8. File Upload/Download Flow
+Upload (save version):
+  1. User clicks "Save version" ? modal opens
+  2. User fills metadata, optionally selects audio preview
+  3. Tauri (Rust):
+     a. Copies project folder to temp
+     b. Cleans cache/temp files
+     c. Archives to ZIP
+     d. Calculates SHA256
+  4. Nuxt sends POST /projects/:id/versions (metadata)
+     ? Server creates Version record (status: 'pending')
+     ? Returns upload_id + signed upload URL
+  5. Tauri (Rust): uploads file in 8MB chunks
+     ? Each chunk: PUT with Content-Range header
+     ? Reports progress via Tauri events ? UI progress bar
+  6. On completion:
+     ? Server verifies SHA256
+     ? Background task (RQ high): extracts file listing, updates size
+     ? Server marks version as 'completed'
+  7. UI: toast "Version X saved"
+Download:
+  1. User clicks "Download version"
+  2. Client ? POST /versions/:verId/download
+
+FrezzY, [25.05.2026 17:05]
+? Server generates signed URL (valid 1 hour)
+  3. Tauri (Rust): downloads file via streaming HTTP
+     ? Shows progress
+     ? Supports resume on interrupt
+  4. Tauri extracts ZIP to user-chosen location
+  5. UI: toast "Project extracted to /path"
+9. Docker Compose Setup
+services:
+  postgres:
+    image: postgres:16-alpine
+    volumes: [pgdata:/var/lib/postgresql/data]
+    env: [POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD]
+  redis:
+    image: redis:7-alpine
+    volumes: [redisdata:/data]
+  backend:
+    build: ./apps/backend
+    depends_on: [postgres, redis]
+    volumes:
+      - uploads:/app/uploads
+      - ./apps/backend:/app  # dev mount
+    env_file: .env
+    ports: ["8000:8000"]
+  worker:
+    build: ./apps/backend
+    command: rq worker high default low --url redis://redis:6379
+    depends_on: [postgres, redis]
+    volumes:
+      - uploads:/app/uploads
+      - ./apps/backend:/app
+    env_file: .env
+10. Поэтапный план реализации (10 недель)
+Этап  Недели  Что делаем
+0. Foundation  1  Scaffold monorepo, Docker Compose, Tauri+Nuxt setup, FastAPI skeleton, DB init, Alembic first migration
+1. Auth  2  User registration, login, JWT, email confirmation, forgot/reset password, session persistence
+2. Profile  3  Profile CRUD, avatar upload, social links, settings endpoints, public profile page
+3. Projects CRUD  4  Project list/detail/create/edit, tags, metadata, cover upload, grid UI with filters
+4. Version System  5-6  Archive/create versions, history timeline, upload pipeline (Tauri archiving + chunked upload), version cards, progress UI, download + extract
+5. Audio Previews  7  Upload preview files, MP3 conversion (FFmpeg), streaming endpoint, AudioPlayer component, waveform visualization
+6. Collab & Access  8  Invite collaborators, manage access roles, share links, accept/decline flow, notifications system
+7. Comments & Polish  9  Comments CRUD, notification prefs, search API, offline mode, error handling, loading states
+8. UI & Release  10  Apple-style theme (light/dark), animations, settings page, performance tuning, beta packaging
