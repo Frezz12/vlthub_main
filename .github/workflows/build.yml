@@ -71,6 +71,37 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
+      - name: Sign bundles manually
+        shell: bash
+        run: |
+          BUNDLE_DIR="apps/desktop/src-tauri/target/release/bundle"
+          KEY="${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}"
+          PASS="${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}"
+
+          echo "=== Checking signing env ==="
+          echo "KEY length: ${#KEY}"
+          echo "PASS length: ${#PASS}"
+
+          if [ -z "$KEY" ] || [ -z "$PASS" ]; then
+            echo "::warning::Signing key or password not set"
+            exit 0
+          fi
+
+          echo "=== Signing bundles ==="
+          find "$BUNDLE_DIR" -type f \( -name '*.msi' -o -name '*.exe' -o -name '*.dmg' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.zip' \) | while read -r file; do
+            sig="${file}.sig"
+            if [ -f "$sig" ]; then
+              echo "Already signed: $(basename "$file")"
+              continue
+            fi
+            echo "Signing: $(basename "$file")"
+            TAURI_SIGNING_PRIVATE_KEY="$KEY" TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$PASS" \
+              npx @tauri-apps/cli sign sign --file "$file" 2>&1 || echo "::warning::Failed to sign $(basename "$file")"
+          done
+
+          echo "=== .sig files ==="
+          find "$BUNDLE_DIR" -name '*.sig' -type f
+
       - name: List bundle contents (debug)
         if: always()
         shell: bash
@@ -132,17 +163,23 @@ jobs:
               dirname="$(basename "$dir")"
 
               case "$dirname" in
-                deb|AppImage|appimage) target="linux-x86_64" ;;
+                deb|AppImage|appimage|rpm) target="linux-x86_64" ;;
                 msi|nsis|wix)          target="windows-x86_64" ;;
                 dmg|macos)             target="darwin-aarch64" ;;
                 *) continue ;;
               esac
 
-              bundle=$(find "$dir" -maxdepth 1 -type f \( -name '*.AppImage' -o -name '*.deb' -o -name '*.msi' -o -name '*.exe' -o -name '*.zip' -o -name '*.dmg' \) 2>/dev/null | head -1)
+              bundle=$(find "$dir" -maxdepth 1 -type f \( -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.msi' -o -name '*.exe' -o -name '*.zip' -o -name '*.dmg' \) 2>/dev/null | head -1)
 
               if [ -z "$bundle" ]; then
                 echo "::warning::No bundle file found in $dir"
                 ls -la "$dir" >&2
+                continue
+              fi
+
+              # Skip if this target already has a bundle (first match wins)
+              if jq -e ".platforms.\"$target\"" latest.json > /dev/null 2>&1; then
+                echo "Skipping $(basename "$bundle") — $target already has a bundle"
                 continue
               fi
 
