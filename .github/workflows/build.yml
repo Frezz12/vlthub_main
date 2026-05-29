@@ -169,12 +169,17 @@ jobs:
                 *) continue ;;
               esac
 
-              # On macOS, prefer .tar.gz (updater artifact) over .dmg
-              if [ "$dirname" = "dmg" ] || [ "$dirname" = "macos" ]; then
-                bundle=$(find "$dir" -maxdepth 1 -type f -name '*.tar.gz' 2>/dev/null | head -1)
-              fi
+              # Prefer .tar.gz (updater artifact) over traditional installer on all platforms
+              bundle=$(find "$dir" -maxdepth 1 -type f -name '*.tar.gz' 2>/dev/null | head -1)
               if [ -z "$bundle" ]; then
-                bundle=$(find "$dir" -maxdepth 1 -type f \( -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.msi' -o -name '*.exe' -o -name '*.zip' -o -name '*.dmg' -o -name '*.tar.gz' \) 2>/dev/null | head -1)
+                case "$dirname" in
+                  deb|AppImage|appimage|rpm)
+                    bundle=$(find "$dir" -maxdepth 1 -type f \( -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' \) 2>/dev/null | head -1) ;;
+                  msi|nsis|wix)
+                    bundle=$(find "$dir" -maxdepth 1 -type f \( -name '*.msi' -o -name '*.exe' \) 2>/dev/null | head -1) ;;
+                  dmg|macos)
+                    bundle=$(find "$dir" -maxdepth 1 -type f -name '*.dmg' 2>/dev/null | head -1) ;;
+                esac
               fi
 
               if [ -z "$bundle" ]; then

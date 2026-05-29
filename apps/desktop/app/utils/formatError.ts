@@ -14,7 +14,7 @@ const errorMap: [RegExp, string][] = [
   [/locked|blocked/i, 'Аккаунт заблокирован.'],
   [/validation.*error|422/i, 'Проверьте введённые данные и попробуйте снова.'],
   [/5\d{2}/, 'Ошибка сервера. Попробуйте позже.'],
-  [/invalid updater binary/i, 'Ошибка при загрузке обновления. Попробуйте позже.'],
+  [/invalid updater binary|invalid gzip header/i, 'Ошибка при загрузке обновления. Попробуйте позже.'],
 ]
 
 export function formatError(err: unknown): string {

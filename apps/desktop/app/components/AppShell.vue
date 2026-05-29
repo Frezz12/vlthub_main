@@ -3,7 +3,7 @@ import { formatError } from '~/utils/formatError'
 const auth = useAuthStore()
 const route = useRoute()
 
-const appVersion = ref('0.7.4')
+const appVersion = ref('0.7.5')
 
 const isAuthPage = computed(() =>
   ['/login', '/register', '/forgot-password', '/reset-password', '/confirm-email'].includes(route.path),
@@ -136,7 +136,8 @@ if (import.meta.client) {
     <div class="flex" :class="isLandingPage ? '' : 'pt-14'">
       <AppSidebar v-if="showSidebar" />
       <main
-        class="flex-1 ml-16 transition-all duration-300"
+        class="flex-1 transition-all duration-300"
+        :class="showSidebar ? 'ml-16' : ''"
       >
         <div v-if="isAuthPage" class="flex items-center justify-center min-h-[calc(100vh-3.5rem)]">
           <slot />

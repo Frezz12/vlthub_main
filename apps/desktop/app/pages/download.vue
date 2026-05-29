@@ -111,7 +111,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="relative w-full overflow-x-hidden">
+  <div class="download-page relative w-full overflow-x-hidden min-h-screen">
     <!-- Animated background orbs -->
     <div class="fixed inset-0 -z-10">
       <div class="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-surface" />
@@ -205,6 +205,16 @@ onUnmounted(() => {
           <NuxtLink to="/login" class="hover:text-primary transition-colors">Войти</NuxtLink>
           <span class="text-secondary/20">·</span>
           <NuxtLink to="/register" class="hover:text-primary transition-colors">Регистрация</NuxtLink>
+        </div>
+
+        <div v-if="downloadLinks?.mac || downloadLinks?.macIntel" class="mt-6 mx-auto max-w-lg rounded-xl bg-amber-500/5 border border-amber-500/15 p-3 text-left">
+          <p class="text-xs text-amber-600/80 dark:text-amber-400/80 leading-relaxed">
+            <span class="font-medium">Для macOS:</span> После установки может потребоваться снять карантин —
+            откройте Терминал и выполните:
+          </p>
+          <code class="mt-1.5 block text-xs bg-background/60 rounded-lg px-3 py-2 select-all font-mono text-amber-600 dark:text-amber-400 border border-amber-500/10">
+            sudo xattr -rd com.apple.quarantine /Applications/VLTHub.app
+          </code>
         </div>
       </div>
     </section>
@@ -402,6 +412,74 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.download-page {
+  --color-primary: #007AFF;
+  --color-primary-light: #409CFF;
+  --color-primary-dark: #0055CC;
+  --color-surface: #F5F5F7;
+  --color-surface-elevated: #FFFFFF;
+  --color-text: #1D1D1F;
+  --color-text-muted: #48484A;
+  --color-secondary: #86868B;
+  --color-border: #E5E5EA;
+  --color-border-light: rgba(229, 229, 234, 0.6);
+  --color-separator: rgba(0, 0, 0, 0.08);
+  --color-input-bg: #F5F5F7;
+  --color-input-border: #E5E5EA;
+  --color-avatar-ring: rgba(0, 0, 0, 0.06);
+  --color-hover: rgba(0, 0, 0, 0.04);
+  --color-btn-secondary: #E5E5EA;
+  --color-btn-secondary-hover: #D1D1D6;
+  --color-muted-surface: #FAFAFA;
+  --color-glass: rgba(255, 255, 255, 0.72);
+  --color-glass-panel: rgba(255, 255, 255, 0.85);
+  --color-chip-bg: #F5F5F7;
+  --color-tab-active-bg: #1D1D1F;
+  --color-tab-active-text: #FFFFFF;
+  --color-nav-muted: #6E6E73;
+  --color-heatmap-empty: #EBEDF0;
+  --color-background: #fff;
+  background-color: var(--color-surface);
+  color: var(--color-text);
+}
+
+.download-page .text-foreground {
+  color: var(--color-text);
+}
+.download-page .text-secondary {
+  color: var(--color-secondary);
+}
+.download-page .text-secondary\/60 {
+  color: color-mix(in srgb, var(--color-secondary) 60%, transparent);
+}
+.download-page .text-secondary\/50 {
+  color: color-mix(in srgb, var(--color-secondary) 50%, transparent);
+}
+.download-page .text-secondary\/20 {
+  color: color-mix(in srgb, var(--color-secondary) 20%, transparent);
+}
+.download-page .from-foreground {
+  --tw-gradient-from: var(--color-text);
+}
+.download-page .via-foreground {
+  --tw-gradient-via: var(--color-text);
+}
+.download-page .to-primary\/70 {
+  --tw-gradient-to: color-mix(in srgb, var(--color-primary) 70%, transparent);
+}
+.download-page .border-separator\/50 {
+  border-color: color-mix(in srgb, var(--color-separator) 50%, transparent);
+}
+.download-page .from-background\/80 {
+  --tw-gradient-from: color-mix(in srgb, #fff 80%, transparent);
+}
+.download-page .to-background\/40 {
+  --tw-gradient-to: color-mix(in srgb, #fff 40%, transparent);
+}
+.download-page .bg-background\/60 {
+  background-color: color-mix(in srgb, #fff 60%, transparent);
+}
+
 /* Particle animation */
 .particle {
   position: absolute;
