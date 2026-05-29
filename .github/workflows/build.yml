@@ -73,6 +73,7 @@ jobs:
 
       - name: List bundle contents (debug)
         if: always()
+        shell: bash
         run: |
           echo "=== Bundle dir ==="
           ls -la apps/desktop/src-tauri/target/release/bundle/ || echo "No bundle dir"
@@ -105,6 +106,7 @@ jobs:
 
       - name: List downloaded bundles (debug)
         if: always()
+        shell: bash
         run: |
           echo "=== bundles/ contents ==="
           find bundles/ -type f 2>/dev/null || echo "No files found"
