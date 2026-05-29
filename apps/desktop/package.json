@@ -1,0 +1,38 @@
+{
+  "name": "@pjasaver/desktop",
+  "private": true,
+  "version": "0.2.0",
+  "type": "module",
+  "scripts": {
+    "dev": "nuxt dev --cwd app",
+    "build": "cross-env NUXT_BUILD_TARGET=static nuxt generate --cwd app",
+    "generate": "nuxt generate --cwd app",
+    "preview": "nuxt preview --cwd app",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "tauri:build:sign": "powershell -ExecutionPolicy Bypass -File ./build-signed.ps1"
+  },
+  "dependencies": {
+    "@nuxtjs/tailwindcss": "^6.0.0",
+    "@pinia/nuxt": "^0.9.0",
+    "@pjasaver/shared-types": "workspace:*",
+    "@tauri-apps/plugin-deep-link": "^2.4.9",
+    "@tauri-apps/plugin-updater": "^2.10.1",
+    "@vueuse/core": "^11.0.0",
+    "chart.js": "^4.5.1",
+    "date-fns": "^4.1.0",
+    "jszip": "^3.10.1",
+    "nuxt": "^3.15.0",
+    "ofetch": "^1.4.0",
+    "pinia": "^2.2.0",
+    "vue": "^3.5.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/api": "^2.0.0",
+    "@tauri-apps/cli": "^2.0.0",
+    "@tauri-apps/plugin-dialog": "^2.0.0",
+    "cross-env": "^10.1.0",
+    "typescript": "^5.6.0",
+    "vue-tsc": "^2.1.0"
+  }
+}

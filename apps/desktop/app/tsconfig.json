@@ -1,0 +1,8 @@
+{
+  "extends": "./.nuxt/tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@pjasaver/shared-types": ["../../packages/shared-types/src"]
+    }
+  }
+}

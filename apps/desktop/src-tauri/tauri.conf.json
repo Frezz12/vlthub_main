@@ -1,0 +1,55 @@
+{
+  "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-config-schema/schema.json",
+  "productName": "VLTHub",
+  "version": "0.5.1",
+  "identifier": "com.pjasaver.vlthub",
+  "build": {
+    "frontendDist": "../app/.output/public",
+    "devUrl": "http://localhost:3000",
+    "beforeDevCommand": "cd ../.. && pnpm dev",
+    "beforeBuildCommand": "cd ../.. && cross-env NUXT_BUILD_TARGET=static pnpm build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "VLTHub",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 900,
+        "minHeight": 600,
+        "center": true,
+        "decorations": true,
+        "devtools": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "macOS": {
+      "entitlements": "./Entitlements.plist"
+    },
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico"
+    ]
+  },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "dialog": true,
+      "endpoints": ["https://github.com/Frezz12/vlthub_main/releases/latest/download/latest.json"],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDU5NEQ0QUE0MTZBOThFM0MKUldROGpxa1dwRXBOV1poK0VHb2htcjFLNE9DOGpHRGZVV1F2S3kyeU1HQ0wzeEZiaTlJcktoaWYK"
+    },
+    "deep-link": {
+      "desktop": {
+        "schemes": ["vlthub"]
+      }
+    }
+  }
+}
