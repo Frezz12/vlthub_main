@@ -1,4 +1,5 @@
 import { listen } from '@tauri-apps/api/event'
+import { formatError } from '~/utils/formatError'
 
 export interface UploadEntry {
   id: string
@@ -38,7 +39,7 @@ function initGlobalListener() {
       entry.status = 'complete'
     } else if (phase === 'error') {
       entry.status = 'error'
-      entry.errorMessage = error
+      entry.errorMessage = formatError(error)
     } else if (phase === 'archive') {
       entry.status = 'archiving'
     } else if (phase === 'upload') {
@@ -50,7 +51,7 @@ function initGlobalListener() {
     const entry = uploads[e.payload.label]
     if (!entry) return
     entry.status = 'error'
-    entry.errorMessage = e.payload.error
+    entry.errorMessage = formatError(e.payload.error)
   })
 }
 

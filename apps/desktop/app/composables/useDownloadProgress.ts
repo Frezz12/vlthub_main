@@ -1,4 +1,5 @@
 import { listen } from '@tauri-apps/api/event'
+import { formatError } from '~/utils/formatError'
 
 export interface DownloadEntry {
   id: string
@@ -50,7 +51,7 @@ export function useDownloadProgress() {
     const entry = downloads[id]
     if (!entry) return
     entry.status = 'error'
-    entry.errorMessage = message
+    entry.errorMessage = formatError(message)
   }
 
   function removeDownload(id: string) {

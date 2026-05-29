@@ -4,6 +4,7 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+import { formatError } from '~/utils/formatError'
 const versions = useVersionsStore()
 const toast = inject('toast') as { show: (msg: string, type: 'success' | 'error' | 'info') => void }
 
@@ -21,7 +22,7 @@ async function handleCompare() {
       body: { version_1_id: ver1Id.value, version_2_id: ver2Id.value },
     })
   } catch (e: any) {
-    toast.show(e.message || 'Ошибка', 'error')
+    toast.show(formatError(e), 'error')
   } finally {
     loading.value = false
   }

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatError } from '~/utils/formatError'
 const auth = useAuthStore()
 const toast = inject('toast') as { show: (msg: string, type: 'success' | 'error' | 'info') => void }
 
@@ -30,7 +31,7 @@ async function handleRegister() {
     toast.show('Аккаунт создан', 'success')
     navigateTo('/')
   } catch (e: any) {
-    toast.show(e.message || 'Ошибка регистрации', 'error')
+    toast.show(formatError(e), 'error')
   } finally {
     loading.value = false
   }

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 definePageMeta({ middleware: 'auth' })
 import { invoke } from '@tauri-apps/api/core'
+import { formatError } from '~/utils/formatError'
 
 const route = useRoute()
 const versions = useVersionsStore()
@@ -74,7 +75,7 @@ async function handleFileUpload() {
     await versions.fetchFiles(projectId.value, verId.value)
   } catch (e: any) {
     console.error('upload error', e)
-    toast.show(e?.message || e?.toString() || 'Ошибка загрузки', 'error')
+    toast.show(formatError(e), 'error')
   } finally {
     uploading.value = false
     uploadFile.value = null
@@ -109,7 +110,7 @@ async function handlePreviewUpload() {
     previewFile.value = null
     await versions.fetchVersion(projectId.value, verId.value)
   } catch (e: any) {
-    toast.show(e.message || 'Ошибка', 'error')
+    toast.show(formatError(e), 'error')
   } finally {
     uploadingPreview.value = false
   }
@@ -124,7 +125,7 @@ async function handleDeletePreview(previewId: string) {
     )
     await versions.fetchVersion(projectId.value, verId.value)
   } catch (e: any) {
-    toast.show(e.message || 'Ошибка', 'error')
+    toast.show(formatError(e), 'error')
   } finally {
     deletingPreviewId.value = null
   }
@@ -195,7 +196,7 @@ async function handleDownload(file: any) {
     }
   } catch (e: any) {
     console.error('download error', e)
-    toast.show(e?.message || e?.toString() || 'Ошибка скачивания', 'error')
+    toast.show(formatError(e), 'error')
   } finally {
     downloadingFileId.value = null
     fileDownloadProgress.value = 0
@@ -240,7 +241,7 @@ async function addTask() {
     tasks.value.push(task)
     taskText.value = ''
   } catch (e: any) {
-    toast.show(e.message || 'Ошибка', 'error')
+    toast.show(formatError(e), 'error')
   } finally {
     addingTask.value = false
   }
@@ -284,7 +285,7 @@ async function handleAddComment() {
     commentText.value = ''
     toast.show('Комментарий добавлен', 'success')
   } catch (e: any) {
-    toast.show(e.message || 'Ошибка', 'error')
+    toast.show(formatError(e), 'error')
   } finally {
     loadingComment.value = false
   }

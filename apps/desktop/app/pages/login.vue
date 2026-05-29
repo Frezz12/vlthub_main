@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AnimatedBackground from '~/components/AnimatedBackground.vue'
+import { formatError } from '~/utils/formatError'
 
 const auth = useAuthStore()
 const toast = inject('toast') as { show: (msg: string, type: 'success' | 'error' | 'info') => void }
@@ -15,7 +16,7 @@ async function handleLogin() {
     toast.show('Успешный вход', 'success')
     navigateTo('/')
   } catch (e: any) {
-    toast.show(e.message || 'Ошибка входа', 'error')
+    toast.show(formatError(e), 'error')
   } finally {
     loading.value = false
   }

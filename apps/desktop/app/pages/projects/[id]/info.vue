@@ -1,5 +1,6 @@
 <script setup lang="ts">
 definePageMeta({ middleware: 'auth' })
+import { formatError } from '~/utils/formatError'
 
 const route = useRoute()
 const projects = useProjectsStore()
@@ -98,7 +99,7 @@ async function handleSave() {
     })
     toast.show('Проект обновлён', 'success')
   } catch (e: any) {
-    toast.show(e.message || 'Ошибка', 'error')
+    toast.show(formatError(e), 'error')
   }
 }
 
@@ -110,7 +111,7 @@ async function handleArchive() {
     is_archived.value = !is_archived.value
     toast.show(is_archived.value ? 'Проект архивирован' : 'Проект разархивирован', 'success')
   } catch (e: any) {
-    toast.show(e.message || 'Ошибка', 'error')
+    toast.show(formatError(e), 'error')
   }
 }
 
@@ -137,7 +138,7 @@ async function handleCoverUpload() {
     coverPreview.value = null
     toast.show('Обложка обновлена', 'success')
   } catch (e: any) {
-    toast.show(e.message || 'Ошибка загрузки обложки', 'error')
+    toast.show(formatError(e), 'error')
   } finally {
     uploadingCover.value = false
   }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { DawType } from '@pjasaver/shared-types'
+import { formatError } from '~/utils/formatError'
 
 const emit = defineEmits<{ created: [] }>()
 const projects = useProjectsStore()
@@ -132,7 +133,7 @@ async function handleSubmit() {
     toast.show('Проект создан', 'success')
     emit('created')
   } catch (e: any) {
-    toast.show(e.message || 'Ошибка', 'error')
+    toast.show(formatError(e), 'error')
   } finally {
     loading.value = false
   }

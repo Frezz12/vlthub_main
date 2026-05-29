@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatError } from '~/utils/formatError'
 const auth = useAuthStore()
 const toast = inject('toast') as { show: (msg: string, type: 'success' | 'error' | 'info') => void }
 
@@ -18,7 +19,7 @@ async function handleSubmit() {
     if (auth.user) auth.user.is_email_confirmed = true
     toast.show('Email подтверждён', 'success')
   } catch (e: any) {
-    toast.show(e.message || 'Неверный код', 'error')
+    toast.show(formatError(e), 'error')
   } finally {
     loading.value = false
   }

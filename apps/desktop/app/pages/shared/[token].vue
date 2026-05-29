@@ -16,6 +16,7 @@ interface SharedProject {
   role: string
 }
 
+import { formatError } from '~/utils/formatError'
 const route = useRoute()
 const loading = ref(true)
 const project = ref<SharedProject | null>(null)
@@ -35,7 +36,7 @@ onMounted(async () => {
     }
     project.value = await res.json()
   } catch (e: any) {
-    error.value = e.message || 'Failed to load project'
+    error.value = formatError(e)
   } finally {
     loading.value = false
   }
@@ -56,7 +57,7 @@ async function requestAccess() {
     if (!res.ok) throw new Error('Failed to request access')
     toast.show('Запрос на доступ отправлен', 'success')
   } catch (e: any) {
-    toast.show(e.message || 'Ошибка', 'error')
+    toast.show(formatError(e), 'error')
   } finally {
     requesting.value = false
   }

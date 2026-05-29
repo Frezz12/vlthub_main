@@ -1,5 +1,6 @@
 <script setup lang="ts">
 definePageMeta({ middleware: 'auth' })
+import { formatError } from '~/utils/formatError'
 
 const auth = useAuthStore()
 const toast = inject('toast') as { show: (msg: string, type: 'success' | 'error' | 'info') => void }
@@ -41,7 +42,7 @@ async function handleSetPin() {
     pin.value = ''
     pinConfirm.value = ''
   } catch (e: any) {
-    toast.show(e.message || 'Ошибка', 'error')
+    toast.show(formatError(e), 'error')
   } finally {
     pinLoading.value = false
   }
@@ -73,7 +74,7 @@ async function selectBadge(badgeId: string) {
     await auth.fetchMe()
     toast.show('Значок выбран', 'success')
   } catch (e: any) {
-    toast.show(e.message || 'Ошибка', 'error')
+    toast.show(formatError(e), 'error')
   }
 }
 
@@ -87,7 +88,7 @@ async function deactivateBadge() {
     await auth.fetchMe()
     toast.show('Значок убран', 'success')
   } catch (e: any) {
-    toast.show(e.message || 'Ошибка', 'error')
+    toast.show(formatError(e), 'error')
   }
 }
 
@@ -157,7 +158,7 @@ async function handleAvatarUpload(e: Event) {
     await auth.fetchMe()
     toast.show('Аватар обновлён', 'success')
   } catch (e: any) {
-    toast.show(e.message || 'Ошибка загрузки', 'error')
+    toast.show(formatError(e), 'error')
   } finally {
     avatarUploading.value = false
   }
@@ -187,7 +188,7 @@ async function handleCoverCrop(blob: Blob) {
     await auth.fetchMe()
     toast.show('Фон профиля обновлён', 'success')
   } catch (e: any) {
-    toast.show(e.message || 'Ошибка загрузки', 'error')
+    toast.show(formatError(e), 'error')
   } finally {
     coverUploading.value = false
   }
@@ -204,7 +205,7 @@ async function handleProfileSave() {
     await auth.fetchMe()
     toast.show('Профиль обновлён', 'success')
   } catch (e: any) {
-    toast.show(e.message || 'Ошибка', 'error')
+    toast.show(formatError(e), 'error')
   } finally {
     profileLoading.value = false
   }

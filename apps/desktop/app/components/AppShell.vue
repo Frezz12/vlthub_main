@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import { formatError } from '~/utils/formatError'
 const auth = useAuthStore()
 const route = useRoute()
 
-const appVersion = ref('0.7.3')
+const appVersion = ref('0.7.4')
 
 const isAuthPage = computed(() =>
   ['/login', '/register', '/forgot-password', '/reset-password', '/confirm-email'].includes(route.path),
@@ -90,7 +91,7 @@ async function startDownload() {
     })
     updateState.value = 'ready'
   } catch (e: any) {
-    updateError.value = typeof e === 'string' ? e : e?.message || 'Ошибка при загрузке обновления'
+    updateError.value = formatError(e)
     console.error('[updater]', e)
     updateState.value = 'error'
   }

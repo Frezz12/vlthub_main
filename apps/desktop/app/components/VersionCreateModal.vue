@@ -8,6 +8,7 @@ const emit = defineEmits<{ created: [] }>()
 const versions = useVersionsStore()
 const auth = useAuthStore()
 const toast = inject('toast') as { show: (msg: string, type: 'success' | 'error' | 'info') => void }
+import { formatError } from '~/utils/formatError'
 
 const archiver = useProjectArchiver()
 
@@ -112,12 +113,7 @@ async function handleSubmit() {
     toast.show('Версия создана', 'success')
     emit('created')
   } catch (e: any) {
-    const msg = e.message || ''
-    if (msg.includes('Storage limit') || msg.includes('413')) {
-      toast.show('Лимит хранилища исчерпан. Освободите место или увеличьте лимит.', 'error', 5000)
-    } else {
-      toast.show(msg || 'Ошибка', 'error')
-    }
+    toast.show(formatError(e), 'error', 5000)
   } finally {
     loading.value = false
     uploading.value = false

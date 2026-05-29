@@ -3,6 +3,7 @@ import { Chart, registerables } from 'chart.js'
 Chart.register(...registerables)
 
 definePageMeta({ middleware: 'auth' })
+import { formatError } from '~/utils/formatError'
 
 const auth = useAuthStore()
 const toast = inject('toast') as { show: (msg: string, type: 'success' | 'error' | 'info') => void }
@@ -61,7 +62,7 @@ async function fetchUsers() {
     users.value = u
     storageSummary.value = s
   } catch (e: any) {
-    toast.show(e.message || 'Ошибка загрузки', 'error')
+    toast.show(formatError(e), 'error')
   } finally {
     loading.value = false
   }
@@ -78,7 +79,7 @@ async function setLimit(userId: string) {
     editingLimit.value = null
     await fetchUsers()
   } catch (e: any) {
-    toast.show(e.message || 'Ошибка', 'error')
+    toast.show(formatError(e), 'error')
   }
 }
 
@@ -96,7 +97,7 @@ async function deleteUser(userId: string) {
     toast.show('Пользователь удалён', 'success')
     await fetchUsers()
   } catch (e: any) {
-    toast.show(e.message || 'Ошибка удаления', 'error')
+    toast.show(formatError(e), 'error')
   } finally {
     deletingId.value = null
   }
@@ -168,7 +169,7 @@ async function saveEditBadge() {
     editingBadge.value = null
     await fetchBadgeList()
   } catch (e: any) {
-    toast.show(e.message || 'Ошибка обновления', 'error')
+    toast.show(formatError(e), 'error')
   }
 }
 
@@ -179,7 +180,7 @@ async function fetchBadgeList() {
       headers: auth._authHeaders(),
     })
   } catch (e: any) {
-    toast.show(e.message || 'Ошибка загрузки', 'error')
+    toast.show(formatError(e), 'error')
   } finally {
     badgesLoading.value = false
   }
@@ -215,7 +216,7 @@ async function createBadge() {
     newBadgeEffect.value = ''
     await fetchBadgeList()
   } catch (e: any) {
-    toast.show(e.message || 'Ошибка создания', 'error')
+    toast.show(formatError(e), 'error')
   }
 }
 
@@ -229,7 +230,7 @@ async function deleteBadge(badgeId: string) {
     toast.show('Значок удалён', 'success')
     await fetchBadgeList()
   } catch (e: any) {
-    toast.show(e.message || 'Ошибка удаления', 'error')
+    toast.show(formatError(e), 'error')
   } finally {
     deletingBadgeId.value = null
   }
@@ -252,7 +253,7 @@ async function openBadgeAssign(userId: string) {
       is_active: userBadges.some(ub => ub.badge.id === b.id),
     }))
   } catch (e: any) {
-    toast.show(e.message || 'Ошибка', 'error')
+    toast.show(formatError(e), 'error')
     badgeAssignUserId.value = null
   }
 }
@@ -273,7 +274,7 @@ async function toggleBadgeAssign(badgeId: string, currentlyAssigned: boolean) {
     await openBadgeAssign(badgeAssignUserId.value!)
     toast.show(currentlyAssigned ? 'Значок отозван' : 'Значок выдан', 'success')
   } catch (e: any) {
-    toast.show(e.message || 'Ошибка', 'error')
+    toast.show(formatError(e), 'error')
   }
 }
 
@@ -305,7 +306,7 @@ async function fetchStats() {
       headers: auth._authHeaders(),
     })
   } catch (e: any) {
-    toast.show(e.message || 'Ошибка загрузки статистики', 'error')
+    toast.show(formatError(e), 'error')
   } finally {
     statsLoading.value = false
   }

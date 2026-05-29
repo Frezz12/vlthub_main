@@ -1,5 +1,6 @@
 <script setup lang="ts">
 definePageMeta({ middleware: 'auth' })
+import { formatError } from '~/utils/formatError'
 
 const notifications = useNotificationsStore()
 const projectsStore = useProjectsStore()
@@ -17,7 +18,7 @@ async function handleApprove(n: { id: string; related_project_id: string | null;
     toast.show('Доступ предоставлен', 'success')
     notifications.fetchNotifications()
   } catch (e: any) {
-    toast.show(e?.message || 'Ошибка', 'error')
+    toast.show(formatError(e), 'error')
   }
 }
 
@@ -29,7 +30,7 @@ async function handleDeny(n: { id: string; related_project_id: string | null; re
     toast.show('Запрос отклонён', 'info')
     notifications.fetchNotifications()
   } catch (e: any) {
-    toast.show(e?.message || 'Ошибка', 'error')
+    toast.show(formatError(e), 'error')
   }
 }
 </script>

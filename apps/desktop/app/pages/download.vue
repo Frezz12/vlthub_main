@@ -1,4 +1,69 @@
 <script setup lang="ts">
+import type { Ref } from 'vue'
+
+const GITHUB_REPO = 'Frezz12/vlthub_main'
+
+interface ReleaseAsset {
+  name: string
+  browser_download_url: string
+  size?: number
+}
+
+const release = ref<{ tag_name: string; assets: ReleaseAsset[] } | null>(null)
+const loading = ref(true)
+
+function matchPlatform(name: string): 'mac' | 'macIntel' | 'windows' | null {
+  if (name.endsWith('aarch64.dmg')) return 'mac'
+  if (name.endsWith('x64.dmg')) return 'macIntel'
+  if (name.match(/x64(-setup)?\.(exe|msi)$/)) return 'windows'
+  return null
+}
+
+onMounted(async () => {
+  try {
+    const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`)
+    if (!res.ok) throw new Error('Failed to fetch release')
+    const data = await res.json()
+    release.value = {
+      tag_name: data.tag_name,
+      assets: (data.assets || []).map((a: any) => ({
+        name: a.name,
+        browser_download_url: a.browser_download_url,
+        size: a.size,
+      })),
+    }
+  } catch {
+    release.value = null
+  } finally {
+    loading.value = false
+  }
+
+  const { useIntersectionObserver } = await import('@vueuse/core')
+  const observe = (el: Ref<HTMLElement | null>, key: string) => {
+    if (!el.value) return
+    const { stop } = useIntersectionObserver(el, ([{ isIntersecting }]) => {
+      if (isIntersecting) visibleSections.value[key] = true
+    })
+    stopObservers.push(stop)
+  }
+  observe(featuresRef, 'features')
+  observe(howRef, 'how')
+  observe(audienceRef, 'audience')
+  visibleSections.value.cta = true
+})
+
+const downloadLinks = computed(() => {
+  const d = release.value
+  if (!d) return null
+  const assets = d.assets
+  return {
+    mac: assets.find(a => matchPlatform(a.name) === 'mac') || null,
+    macIntel: assets.find(a => matchPlatform(a.name) === 'macIntel') || null,
+    windows: assets.find(a => matchPlatform(a.name) === 'windows') || null,
+    version: d.tag_name,
+  }
+})
+
 const features = [
   {
     icon: 'M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4',
@@ -32,63 +97,98 @@ const features = [
   },
 ]
 
-const downloadLinks = {
-  mac: { label: 'macOS (Apple Silicon)', arch: 'arm64', file: 'VLTHub_0.7.1_aarch64.dmg' },
-  macIntel: { label: 'macOS (Intel)', arch: 'x64', file: 'VLTHub_0.7.1_x64.dmg' },
-  windows: { label: 'Windows', arch: 'x64', file: 'VLTHub_0.7.1_x64-setup.exe' },
-}
+let stopObservers: (() => void)[] = []
 
-const apiBaseUrl = (typeof __API_BASE_URL__ !== 'undefined' && __API_BASE_URL__) ? __API_BASE_URL__ : 'https://vlthub.ru'
+const visibleSections = ref<Record<string, boolean>>({})
+const featuresRef = ref<HTMLElement | null>(null)
+const howRef = ref<HTMLElement | null>(null)
+const audienceRef = ref<HTMLElement | null>(null)
+const ctaRef = ref<HTMLElement | null>(null)
 
-function downloadUrl(file: string) {
-  return `${apiBaseUrl}/downloads/${file}`
-}
+onUnmounted(() => {
+  stopObservers.forEach(fn => fn())
+})
 </script>
 
 <template>
   <div class="relative w-full overflow-x-hidden">
-    <!-- Background gradient -->
+    <!-- Animated background orbs -->
     <div class="fixed inset-0 -z-10">
       <div class="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-surface" />
-      <div class="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-primary/10 rounded-full blur-[120px]" />
-      <div class="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[100px]" />
+      <div class="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-primary/10 rounded-full blur-[120px] animate-drift" />
+      <div class="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[100px] animate-drift-reverse" />
+      <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/[0.03] rounded-full blur-[150px]" />
+
+      <!-- Floating particles -->
+      <div class="absolute inset-0 overflow-hidden pointer-events-none">
+        <div v-for="i in 12" :key="i" class="particle" :style="{
+          left: `${10 + (i * 7) % 80}%`,
+          top: `${(i * 13) % 90}%`,
+          width: `${4 + (i % 3) * 2}px`,
+          height: `${4 + (i % 3) * 2}px`,
+          animationDuration: `${6 + (i % 5) * 2}s`,
+          animationDelay: `${i * 0.4}s`,
+        }" />
+      </div>
     </div>
 
     <!-- Hero -->
     <section class="relative pt-20 pb-16 sm:pt-28 sm:pb-24 px-4">
       <div class="max-w-4xl mx-auto text-center">
         <div class="mb-8 animate-fade-in-up">
-          <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-purple-500/20 border border-primary/10 mb-6">
+          <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-purple-500/20 border border-primary/10 mb-6 shadow-lg shadow-primary/5">
             <svg class="w-10 h-10 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
               <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
           </div>
-          <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight text-foreground">
+          <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight text-foreground bg-gradient-to-r from-foreground via-foreground to-primary/70 bg-clip-text text-transparent">
             Менеджер DAW-проектов
           </h1>
           <p class="mt-4 text-lg sm:text-xl text-secondary max-w-2xl mx-auto">
             VLTHub — это удобное приложение для хранения, версионирования и совместной работы
             над музыкальными проектами. Загружайте проекты из любой DAW и работайте где угодно.
           </p>
+          <p class="mt-2 text-sm text-secondary/60">
+            <template v-if="downloadLinks">Версия {{ downloadLinks.version }} ·</template>
+            Бесплатно · Для macOS и Windows
+          </p>
         </div>
 
         <div class="mt-10 flex flex-wrap items-center justify-center gap-4 animate-fade-in-up delay-3">
-          <a :href="downloadUrl(downloadLinks.mac.file)">
-            <UiButton size="lg" class="gap-3">
-              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Скачать для macOS
-            </UiButton>
-          </a>
-          <a :href="downloadUrl(downloadLinks.windows.file)">
-            <UiButton variant="secondary" size="lg" class="gap-3">
-              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-              Скачать для Windows
-            </UiButton>
-          </a>
+          <template v-if="downloadLinks?.mac">
+            <a :href="downloadLinks.mac.browser_download_url" class="download-btn-glow">
+              <UiButton size="lg" class="gap-3">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Скачать для macOS
+              </UiButton>
+            </a>
+          </template>
+          <UiButton v-else size="lg" disabled class="gap-3">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <template v-if="loading">Загрузка...</template>
+            <template v-else>macOS недоступен</template>
+          </UiButton>
+          <template v-if="downloadLinks?.windows">
+            <a :href="downloadLinks.windows.browser_download_url" class="download-btn-glow">
+              <UiButton variant="secondary" size="lg" class="gap-3">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                Скачать для Windows
+              </UiButton>
+            </a>
+          </template>
+          <UiButton v-else variant="secondary" size="lg" disabled class="gap-3">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            <template v-if="loading">Загрузка...</template>
+            <template v-else>Windows недоступен</template>
+          </UiButton>
           <a href="https://vlthub.ru" target="_blank">
             <UiButton variant="ghost" size="lg" class="gap-3">
               <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -98,21 +198,37 @@ function downloadUrl(file: string) {
             </UiButton>
           </a>
         </div>
+
+        <div class="mt-6 flex items-center justify-center gap-6 text-xs text-secondary/50">
+          <a v-if="downloadLinks?.macIntel" :href="downloadLinks.macIntel.browser_download_url" class="hover:text-primary transition-colors">macOS (Intel)</a>
+          <span v-if="downloadLinks?.macIntel" class="text-secondary/20">·</span>
+          <NuxtLink to="/login" class="hover:text-primary transition-colors">Войти</NuxtLink>
+          <span class="text-secondary/20">·</span>
+          <NuxtLink to="/register" class="hover:text-primary transition-colors">Регистрация</NuxtLink>
+        </div>
       </div>
     </section>
 
+    <!-- Decorative divider -->
+    <div class="relative flex items-center justify-center py-4">
+      <div class="w-px h-12 bg-gradient-to-b from-transparent via-primary/20 to-transparent" />
+    </div>
+
     <!-- Features -->
-    <section class="py-16 sm:py-20 px-4">
+    <section ref="featuresRef" class="py-16 sm:py-20 px-4">
       <div class="max-w-6xl mx-auto">
-        <h2 class="text-3xl sm:text-4xl font-bold text-center text-foreground mb-4">Возможности</h2>
-        <p class="text-secondary text-center max-w-xl mx-auto mb-12 text-base">
-          Всё необходимое для работы с музыкальными проектами в одном месте
-        </p>
+        <div :class="['transition-all duration-700', visibleSections.features ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8']">
+          <h2 class="text-3xl sm:text-4xl font-bold text-center text-foreground mb-4">Возможности</h2>
+          <p class="text-secondary text-center max-w-xl mx-auto mb-12 text-base">
+            Всё необходимое для работы с музыкальными проектами в одном месте
+          </p>
+        </div>
         <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           <div
             v-for="(f, i) in features"
             :key="i"
-            class="card p-6 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 group bg-gradient-to-br from-background/80 to-background/40 backdrop-blur-sm border border-separator/50"
+            :class="['card p-6 bg-gradient-to-br from-background/80 to-background/40 backdrop-blur-sm border border-separator/50 transition-all duration-500 feature-card', visibleSections.features ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12']"
+            :style="{ transitionDelay: `${i * 80}ms` }"
           >
             <div class="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-4 group-hover:bg-primary group-hover:text-white transition-all duration-300">
               <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
@@ -126,98 +242,151 @@ function downloadUrl(file: string) {
       </div>
     </section>
 
+    <!-- Decorative divider -->
+    <div class="relative flex items-center justify-center py-4">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-px bg-gradient-to-r from-transparent to-primary/20" />
+        <div class="w-1.5 h-1.5 rounded-full bg-primary/20" />
+        <div class="w-8 h-px bg-gradient-to-l from-transparent to-primary/20" />
+      </div>
+    </div>
+
     <!-- How it works -->
-    <section class="py-16 sm:py-20 px-4 border-t border-separator">
+    <section ref="howRef" class="py-16 sm:py-20 px-4">
       <div class="max-w-4xl mx-auto">
-        <h2 class="text-3xl sm:text-4xl font-bold text-center text-foreground mb-4">Как это работает</h2>
-        <p class="text-secondary text-center max-w-xl mx-auto mb-12 text-base">
-          Всё просто: установите приложение, выберите папку с проектом и сохраните его
-        </p>
+        <div :class="['transition-all duration-700', visibleSections.how ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8']">
+          <h2 class="text-3xl sm:text-4xl font-bold text-center text-foreground mb-4">Как это работает</h2>
+          <p class="text-secondary text-center max-w-xl mx-auto mb-12 text-base">
+            Всё просто: установите приложение, выберите папку с проектом и сохраните его
+          </p>
+        </div>
         <div class="grid sm:grid-cols-3 gap-8 text-center">
-          <div class="p-6">
-            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/20 to-purple-500/20 text-primary flex items-center justify-center mx-auto mb-4 text-2xl font-bold border border-primary/10">1</div>
-            <h3 class="font-semibold text-foreground mb-2">Установите приложение</h3>
-            <p class="text-sm text-secondary">Скачайте VLTHub для вашей платформы и установите</p>
-          </div>
-          <div class="p-6">
-            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/20 to-purple-500/20 text-primary flex items-center justify-center mx-auto mb-4 text-2xl font-bold border border-primary/10">2</div>
-            <h3 class="font-semibold text-foreground mb-2">Выберите папку проекта</h3>
-            <p class="text-sm text-secondary">Укажите папку с вашим DAW-проектом в удобном диалоге</p>
-          </div>
-          <div class="p-6">
-            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/20 to-purple-500/20 text-primary flex items-center justify-center mx-auto mb-4 text-2xl font-bold border border-primary/10">3</div>
-            <h3 class="font-semibold text-foreground mb-2">Сохраните в облако</h3>
-            <p class="text-sm text-secondary">Проект автоматически упакуется и загрузится на сервер</p>
+          <div
+            v-for="(step, i) in [
+              { num: '1', title: 'Установите приложение', desc: 'Скачайте VLTHub для вашей платформы и установите', icon: 'M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
+              { num: '2', title: 'Выберите папку проекта', desc: 'Укажите папку с вашим DAW-проектом в удобном диалоге', icon: 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z' },
+              { num: '3', title: 'Сохраните в облако', desc: 'Проект автоматически упакуется и загрузится на сервер', icon: 'M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12' },
+            ]"
+            :key="i"
+            :class="['transition-all duration-500', visibleSections.how ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12']"
+            :style="{ transitionDelay: `${i * 120}ms` }"
+          >
+            <div class="p-6 step-card">
+              <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/20 to-purple-500/20 text-primary flex items-center justify-center mx-auto mb-4 text-2xl font-bold border border-primary/10 transition-all duration-300 step-number">
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" :d="step.icon" />
+                </svg>
+              </div>
+              <h3 class="font-semibold text-foreground mb-2">{{ step.title }}</h3>
+              <p class="text-sm text-secondary">{{ step.desc }}</p>
+            </div>
           </div>
         </div>
       </div>
     </section>
 
+    <!-- Decorative divider -->
+    <div class="relative flex items-center justify-center py-4">
+      <div class="flex items-center gap-3">
+        <div class="w-16 h-px bg-gradient-to-r from-transparent to-primary/10" />
+        <div class="w-2 h-2 rotate-45 border border-primary/10" />
+        <div class="w-16 h-px bg-gradient-to-l from-transparent to-primary/10" />
+      </div>
+    </div>
+
     <!-- For whom -->
-    <section class="py-16 sm:py-20 px-4 border-t border-separator">
+    <section ref="audienceRef" class="py-16 sm:py-20 px-4">
       <div class="max-w-4xl mx-auto text-center">
-        <h2 class="text-3xl sm:text-4xl font-bold text-foreground mb-4">Для кого это</h2>
-        <p class="text-secondary max-w-xl mx-auto mb-10 text-base">
-          VLTHub пригодится каждому, кто работает с музыкой
-        </p>
+        <div :class="['transition-all duration-700', visibleSections.audience ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8']">
+          <h2 class="text-3xl sm:text-4xl font-bold text-foreground mb-4">Для кого это</h2>
+          <p class="text-secondary max-w-xl mx-auto mb-10 text-base">
+            VLTHub пригодится каждому, кто работает с музыкой
+          </p>
+        </div>
         <div class="grid sm:grid-cols-3 gap-8 text-left">
-          <div class="card p-6 bg-gradient-to-br from-background/80 to-background/40 backdrop-blur-sm border border-separator/50">
-            <p class="text-2xl mb-2">🎹</p>
-            <h3 class="font-semibold text-foreground mb-2">Продюсеры</h3>
-            <p class="text-sm text-secondary leading-relaxed">Храните биты, инструменталы и готовые треки. Больше никаких «final_v2_окончательный.flp»</p>
-          </div>
-          <div class="card p-6 bg-gradient-to-br from-background/80 to-background/40 backdrop-blur-sm border border-separator/50">
-            <p class="text-2xl mb-2">🎧</p>
-            <h3 class="font-semibold text-foreground mb-2">Саунд-дизайнеры</h3>
-            <p class="text-sm text-secondary leading-relaxed">Версионируйте сэшны, пресеты и проекты. В любой момент вернитесь к любому варианту</p>
-          </div>
-          <div class="card p-6 bg-gradient-to-br from-background/80 to-background/40 backdrop-blur-sm border border-separator/50">
-            <p class="text-2xl mb-2">🤝</p>
-            <h3 class="font-semibold text-foreground mb-2">Коллабораторы</h3>
-            <p class="text-sm text-secondary leading-relaxed">Делитесь проектами с командой, управляйте доступом и работайте вместе без путаницы в версиях</p>
+          <div
+            v-for="(item, i) in [
+              { emoji: '🎹', title: 'Продюсеры', desc: 'Храните биты, инструменталы и готовые треки. Больше никаких «final_v2_окончательный.flp»' },
+              { emoji: '🎧', title: 'Саунд-дизайнеры', desc: 'Версионируйте сэшны, пресеты и проекты. В любой момент вернитесь к любому варианту' },
+              { emoji: '🤝', title: 'Коллабораторы', desc: 'Делитесь проектами с командой, управляйте доступом и работайте вместе без путаницы в версиях' },
+            ]"
+            :key="i"
+            :class="['card p-6 bg-gradient-to-br from-background/80 to-background/40 backdrop-blur-sm border border-separator/50 transition-all duration-500 audience-card', visibleSections.audience ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12']"
+            :style="{ transitionDelay: `${i * 100}ms` }"
+          >
+            <span class="text-2xl mb-2 block">{{ item.emoji }}</span>
+            <h3 class="font-semibold text-foreground mb-2">{{ item.title }}</h3>
+            <p class="text-sm text-secondary leading-relaxed">{{ item.desc }}</p>
           </div>
         </div>
       </div>
     </section>
 
     <!-- CTA -->
-    <section class="py-16 sm:py-20 px-4 border-t border-separator">
-      <div class="max-w-2xl mx-auto text-center">
-        <h2 class="text-3xl sm:text-4xl font-bold text-foreground mb-4">Готовы начать?</h2>
-        <p class="text-secondary max-w-lg mx-auto mb-8 text-base">
-          Скачайте приложение или откройте веб-версию прямо сейчас
-        </p>
-        <div class="flex flex-wrap items-center justify-center gap-4">
-          <a :href="downloadUrl(downloadLinks.mac.file)">
-            <UiButton size="lg" class="gap-3">
+    <section class="py-16 sm:py-20 px-4 relative overflow-hidden">
+      <div class="absolute inset-0 bg-gradient-to-b from-primary/[0.02] to-transparent pointer-events-none" />
+      <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[100px] pointer-events-none" />
+      <div ref="ctaRef" class="max-w-2xl mx-auto text-center relative">
+        <div :class="['transition-all duration-700', visibleSections.cta ? 'opacity-100 scale-100' : 'opacity-0 scale-95']">
+          <h2 class="text-3xl sm:text-4xl font-bold text-foreground mb-4">Готовы начать?</h2>
+          <p class="text-secondary max-w-lg mx-auto mb-8 text-base">
+            Скачайте приложение или откройте веб-версию прямо сейчас
+          </p>
+          <div class="flex flex-wrap items-center justify-center gap-4">
+            <template v-if="downloadLinks?.mac">
+              <a :href="downloadLinks.mac.browser_download_url" class="download-btn-glow">
+                <UiButton size="lg" class="gap-3">
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Скачать для macOS
+                </UiButton>
+              </a>
+            </template>
+            <UiButton v-else size="lg" disabled class="gap-3">
               <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              Скачать для macOS
+              <template v-if="loading">Загрузка...</template>
+              <template v-else>macOS недоступен</template>
             </UiButton>
-          </a>
-          <a :href="downloadUrl(downloadLinks.windows.file)">
-            <UiButton variant="secondary" size="lg" class="gap-3">
+            <template v-if="downloadLinks?.windows">
+              <a :href="downloadLinks.windows.browser_download_url" class="download-btn-glow">
+                <UiButton variant="secondary" size="lg" class="gap-3">
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  Скачать для Windows
+                </UiButton>
+              </a>
+            </template>
+            <UiButton v-else variant="secondary" size="lg" disabled class="gap-3">
               <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
-              Скачать для Windows
+              <template v-if="loading">Загрузка...</template>
+              <template v-else>Windows недоступен</template>
             </UiButton>
-          </a>
-          <a href="https://vlthub.ru" target="_blank">
-            <UiButton variant="ghost" size="lg" class="gap-3">
-              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
-              </svg>
-              Web версия
-            </UiButton>
-          </a>
+            <a href="https://vlthub.ru" target="_blank">
+              <UiButton variant="ghost" size="lg" class="gap-3">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                </svg>
+                Web версия
+              </UiButton>
+            </a>
+          </div>
         </div>
       </div>
     </section>
 
+    <!-- Divider before footer -->
+    <div class="relative flex items-center justify-center py-2">
+      <div class="w-full max-w-4xl h-px bg-gradient-to-r from-transparent via-separator to-transparent" />
+    </div>
+
     <!-- Footer -->
-    <footer class="py-8 px-4 border-t border-separator">
+    <footer class="py-8 px-4">
       <div class="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
         <div class="flex items-center gap-2">
           <AppLogo />
@@ -225,9 +394,146 @@ function downloadUrl(file: string) {
         <div class="flex items-center gap-6 text-xs text-secondary/50">
           <NuxtLink to="/login" class="hover:text-primary transition-colors">Войти</NuxtLink>
           <NuxtLink to="/register" class="hover:text-primary transition-colors">Регистрация</NuxtLink>
-          <span>v0.7.1</span>
+          <span v-if="downloadLinks">{{ downloadLinks.version }}</span>
         </div>
       </div>
     </footer>
   </div>
 </template>
+
+<style scoped>
+/* Particle animation */
+.particle {
+  position: absolute;
+  border-radius: 50%;
+  background: var(--color-primary);
+  opacity: 0.15;
+  animation: float-particle linear infinite;
+}
+
+@keyframes float-particle {
+  0% {
+    transform: translateY(0) translateX(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.15;
+  }
+  90% {
+    opacity: 0.15;
+  }
+  100% {
+    transform: translateY(-100vh) translateX(30px);
+    opacity: 0;
+  }
+}
+
+/* Animated background orbs */
+@keyframes drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -30px) scale(1.05); }
+  66% { transform: translate(-20px, 20px) scale(0.95); }
+}
+
+@keyframes drift-reverse {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(-30px, 30px) scale(1.05); }
+  66% { transform: translate(20px, -20px) scale(0.95); }
+}
+
+.animate-drift {
+  animation: drift 20s ease-in-out infinite;
+}
+
+.animate-drift-reverse {
+  animation: drift-reverse 25s ease-in-out infinite;
+}
+
+/* Feature card hover */
+.feature-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.feature-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  background: linear-gradient(135deg, var(--color-primary) 0%, transparent 50%);
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+
+.feature-card:hover::before {
+  opacity: 0.04;
+}
+
+.feature-card:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--color-primary) 10%, transparent);
+  transform: translateY(-2px);
+}
+
+/* Step card hover */
+.step-card {
+  transition: transform 0.3s ease;
+}
+
+.step-card:hover {
+  transform: translateY(-4px);
+}
+
+.step-card:hover .step-number {
+  transform: scale(1.1);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--color-primary) 15%, transparent);
+}
+
+/* Audience card hover */
+.audience-card {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.audience-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 30px color-mix(in srgb, var(--color-primary) 10%, transparent);
+}
+
+/* Download button glow */
+.download-btn-glow {
+  position: relative;
+}
+
+.download-btn-glow::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, var(--color-primary), transparent, var(--color-primary));
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: -1;
+  filter: blur(8px);
+}
+
+.download-btn-glow:hover::after {
+  opacity: 0.5;
+}
+
+/* Staggered animation delay helpers */
+.delay-1 { animation-delay: 0.05s; }
+.delay-2 { animation-delay: 0.1s; }
+.delay-3 { animation-delay: 0.15s; }
+.delay-4 { animation-delay: 0.2s; }
+.delay-5 { animation-delay: 0.25s; }
+.delay-6 { animation-delay: 0.3s; }
+.delay-7 { animation-delay: 0.35s; }
+.delay-8 { animation-delay: 0.4s; }
+
+/* Gradient text for heading */
+.bg-clip-text {
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+</style>

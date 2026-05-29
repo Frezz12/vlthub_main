@@ -1,6 +1,7 @@
 <script setup lang="ts">
 definePageMeta({ middleware: 'auth' })
 import { invoke } from '@tauri-apps/api/core'
+import { formatError } from '~/utils/formatError'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -58,7 +59,7 @@ async function saveProjectDesc() {
     toast.show('Текст песни обновлён', 'success')
     showDescModal.value = false
   } catch (e: any) {
-    toast.show(e.message || 'Ошибка', 'error')
+    toast.show(formatError(e), 'error')
   } finally {
     savingDesc.value = false
   }
@@ -98,7 +99,7 @@ async function saveEdit() {
     toast.show('Версия обновлена', 'success')
     cancelEdit()
   } catch (e: any) {
-    toast.show(e.message || 'Ошибка', 'error')
+    toast.show(formatError(e), 'error')
   }
 }
 
@@ -116,7 +117,7 @@ onMounted(async () => {
     if (e?.response?.status === 403) {
       accessDenied.value = true
     } else {
-      toast.show(e?.message || 'Ошибка загрузки проекта', 'error')
+      toast.show(formatError(e), 'error')
     }
   }
   document.addEventListener('click', handleStatusClickOutside)
@@ -167,7 +168,7 @@ async function handleRequestAccess() {
     accessRequestSent.value = true
     toast.show('Запрос отправлен автору проекта', 'success')
   } catch (e: any) {
-    toast.show(e?.message || 'Ошибка при отправке запроса', 'error')
+    toast.show(formatError(e), 'error')
   } finally {
     requestingAccess.value = false
   }
@@ -186,7 +187,7 @@ async function handlePickFolder() {
     }
     toast.show('Папка проекта выбрана', 'success')
   } catch (e: any) {
-    toast.show(e.message || 'Ошибка', 'error')
+    toast.show(formatError(e), 'error')
   } finally {
     savingQuick.value = false
   }
@@ -242,12 +243,7 @@ async function handleQuickSave() {
     await versions.fetchVersions(route.params.id as string)
     toast.show('Версия сохранена', 'success')
   } catch (e: any) {
-    const msg = e.message || ''
-    if (msg.includes('Storage limit') || msg.includes('413')) {
-      toast.show('Лимит хранилища исчерпан. Освободите место или увеличьте лимит.', 'error', 5000)
-    } else {
-      toast.show(msg || 'Ошибка', 'error')
-    }
+    toast.show(formatError(e), 'error', 5000)
   } finally {
     savingQuick.value = false
     downloadProgress.value = 0
@@ -271,7 +267,7 @@ async function confirmDelete() {
     await versions.deleteVersion(projects.currentProject.id, id)
     toast.show('Версия удалена', 'success')
   } catch (e: any) {
-    toast.show(e.message || 'Ошибка удаления', 'error')
+    toast.show(formatError(e), 'error')
   }
 }
 
@@ -353,8 +349,8 @@ async function handleDownloadVersion(versionId: string) {
     }
   } catch (e: any) {
     console.error('download error', e)
-    dlStore.markError(versionId, e?.message || e?.toString() || 'Ошибка скачивания')
-    toast.show(e?.message || e?.toString() || 'Ошибка скачивания', 'error')
+    dlStore.markError(versionId, formatError(e))
+    toast.show(formatError(e), 'error')
   } finally {
     downloadingVer.value = null
     downloadProgress.value = 0

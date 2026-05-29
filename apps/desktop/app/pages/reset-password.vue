@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatError } from '~/utils/formatError'
 const toast = inject('toast') as { show: (msg: string, type: 'success' | 'error' | 'info') => void }
 
 const email = ref('')
@@ -30,7 +31,7 @@ async function handleSubmit() {
     done.value = true
     toast.show('Пароль изменён', 'success')
   } catch (e: any) {
-    toast.show(e.message || 'Пользователь не найден', 'error')
+    toast.show(formatError(e), 'error')
   } finally {
     loading.value = false
   }

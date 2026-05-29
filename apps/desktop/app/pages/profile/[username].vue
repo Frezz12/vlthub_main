@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { FollowOut, UserProfileOut } from '@pjasaver/shared-types'
+import { formatError } from '~/utils/formatError'
 
 definePageMeta({ middleware: 'auth' })
 
@@ -229,11 +230,11 @@ async function toggleFollow() {
       profile.value.follower_count++
     }
   } catch (e: any) {
-    toast.show(e.message || 'Ошибка', 'error')
+    toast.show(formatError(e), 'error')
   }
 }
 
-onMounted(loadProfile)
+
 </script>
 
 <template>

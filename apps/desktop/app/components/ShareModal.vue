@@ -4,6 +4,7 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+import { formatError } from '~/utils/formatError'
 const projects = useProjectsStore()
 const auth = useAuthStore()
 const toast = inject('toast') as { show: (msg: string, type: 'success' | 'error' | 'info') => void }
@@ -76,7 +77,7 @@ async function handleInvite(user: { id: string; username: string }) {
     query.value = ''
     toast.show(`${collab.nickname} добавлен в проект`, 'success')
   } catch (e: any) {
-    toast.show(e.message || 'Ошибка приглашения', 'error')
+    toast.show(formatError(e), 'error')
   } finally {
     inviting.value = null
   }
@@ -92,7 +93,7 @@ async function handleRemove(userId: string) {
     collaborators.value = collaborators.value.filter(c => c.user_id !== userId)
     toast.show('Участник удалён', 'success')
   } catch (e: any) {
-    toast.show(e.message || 'Ошибка', 'error')
+    toast.show(formatError(e), 'error')
   }
 }
 
@@ -102,7 +103,7 @@ async function handleGenerateLink() {
     shareLink.value = `https://vlthub.ru/shared/${link.token}`
     toast.show('Ссылка скопирована', 'success')
   } catch (e: any) {
-    toast.show(e.message || 'Ошибка', 'error')
+    toast.show(formatError(e), 'error')
   }
 }
 </script>
