@@ -2,6 +2,8 @@
 const auth = useAuthStore()
 const route = useRoute()
 
+const appVersion = ref('0.5.1')
+
 const isAuthPage = computed(() =>
   ['/login', '/register', '/forgot-password', '/reset-password', '/confirm-email'].includes(route.path),
 )
@@ -41,6 +43,11 @@ onMounted(async () => {
     })
 
     silentCheck()
+
+    try {
+      const { getVersion } = await import('@tauri-apps/api/app')
+      appVersion.value = await getVersion()
+    } catch {}
   }
 })
 
@@ -142,7 +149,7 @@ if (import.meta.client) {
       @click="openUpdate"
     >
       <span v-if="updateState === 'available'" class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-      v0.5.1
+      {{ appVersion }}
     </button>
   </div>
 

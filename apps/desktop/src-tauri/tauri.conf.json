@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-config-schema/schema.json",
   "productName": "VLTHub",
-  "version": "0.5.1",
+  "version": "0.6.1",
   "identifier": "com.pjasaver.vlthub",
   "build": {
     "frontendDist": "../app/.output/public",
@@ -43,7 +43,9 @@
     "updater": {
       "active": true,
       "dialog": true,
-      "endpoints": ["https://github.com/Frezz12/vlthub_main/releases/latest/download/latest.json"],
+      "endpoints": [
+        "https://github.com/Frezz12/vlthub_main/releases/latest/download/latest.json"
+      ],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDU5NEQ0QUE0MTZBOThFM0MKUldROGpxa1dwRXBOV1poK0VHb2htcjFLNE9DOGpHRGZVV1F2S3kyeU1HQ0wzeEZiaTlJcktoaWYK"
     },
     "deep-link": {

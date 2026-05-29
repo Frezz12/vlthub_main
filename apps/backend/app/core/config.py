@@ -5,7 +5,7 @@ from typing import List
 
 class Settings(BaseSettings):
     app_name: str = "VLTHub"
-    app_version:str = "0.5.1"
+    app_version:str = "0.6.1"
     debug: bool = False
 
     database_url: str = "postgresql+asyncpg://postgres@localhost:5433/pjasaver"
