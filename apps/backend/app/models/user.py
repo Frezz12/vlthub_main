@@ -28,7 +28,7 @@ class User(Base):
     settings: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True, default=dict)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     pin_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    storage_limit: Mapped[int] = mapped_column(BigInteger, default=5_368_709_120)  # 5 GB
+    storage_limit: Mapped[int] = mapped_column(BigInteger, default=10_737_418_240)  # 10 GB
     storage_used: Mapped[int] = mapped_column(BigInteger, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

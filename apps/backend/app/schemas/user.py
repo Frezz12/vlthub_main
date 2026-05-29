@@ -35,7 +35,7 @@ class UserOut(BaseModel):
     social_links: list[SocialLinkOut] = []
     settings: dict[str, Any] = {}
     is_admin: bool = False
-    storage_limit: int = 5_368_709_120
+    storage_limit: int = 10_737_418_240
     storage_used: int = 0
     badges: list[UserBadgeBrief] = []
     active_badge: UserBadgeBrief | None = None

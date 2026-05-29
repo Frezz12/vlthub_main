@@ -380,32 +380,33 @@ onMounted(loadProfile)
           </button>
         </div>
 
-        <!-- Tab: Overview -->
-        <div v-show="activeTab === 'overview'" class="grid lg:grid-cols-3 gap-6">
-          <div class="lg:col-span-2 space-y-6">
-            <!-- Recent projects preview -->
-            <section v-if="profile.projects?.length" class="card p-6">
-              <div class="flex items-center justify-between mb-5">
-                <h2 class="text-lg font-semibold">Недавние проекты</h2>
-                <button
-                  type="button"
-                  class="text-sm text-primary font-medium hover:underline"
-                  @click="activeTab = 'projects'"
-                >
-                  Все →
-                </button>
-              </div>
-              <div class="grid sm:grid-cols-2 gap-4">
-                <NuxtLink
-                  v-for="p in profile.projects.slice(0, 4)"
-                  :key="p.id"
-                  :to="`/projects/${p.id}`"
-                  class="group rounded-2xl overflow-hidden border border-border/15 hover:border-primary/20 hover:shadow-lg transition-all no-underline"
-                >
-                  <div
-                    class="aspect-square relative overflow-hidden"
-                    :class="p.cover_url ? '' : 'bg-gradient-to-br from-[#F5F5F7] to-primary/10'"
+        <Transition name="tab" mode="out-in">
+          <!-- Tab: Overview -->
+          <div v-if="activeTab === 'overview'" key="overview" class="grid lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 space-y-6">
+              <!-- Recent projects preview -->
+              <section v-if="profile.projects?.length" class="card p-6">
+                <div class="flex items-center justify-between mb-5">
+                  <h2 class="text-lg font-semibold">Недавние проекты</h2>
+                  <button
+                    type="button"
+                    class="text-sm text-primary font-medium hover:underline"
+                    @click="activeTab = 'projects'"
                   >
+                    Все →
+                  </button>
+                </div>
+                <div class="grid sm:grid-cols-2 gap-4">
+                  <NuxtLink
+                    v-for="p in profile.projects.slice(0, 4)"
+                    :key="p.id"
+                    :to="`/projects/${p.id}`"
+                    class="group rounded-2xl overflow-hidden border dark:border-white/5 border-border/15 hover:border-primary/20 hover:shadow-lg transition-all no-underline"
+                  >
+                    <div
+                      class="aspect-square relative overflow-hidden"
+                      :class="p.cover_url ? '' : 'bg-gradient-to-br from-[#F5F5F7] dark:from-white/5 to-primary/10'"
+                    >
                     <img
                       v-if="p.cover_url"
                       :src="resolveApiUrl(p.cover_url)"
@@ -540,8 +541,8 @@ onMounted(loadProfile)
           </aside>
         </div>
 
-        <!-- Tab: Projects -->
-        <div v-show="activeTab === 'projects'">
+          <!-- Tab: Projects -->
+          <div v-else key="projects">
           <div v-if="profile.projects?.length" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             <NuxtLink
               v-for="p in profile.projects"
@@ -602,7 +603,8 @@ onMounted(loadProfile)
           <div v-else class="card p-16 text-center">
             <p class="text-secondary">Нет проектов для отображения</p>
           </div>
-        </div>
+          </div>
+        </Transition>
 
       </div>
     </template>

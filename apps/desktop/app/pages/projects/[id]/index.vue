@@ -43,7 +43,7 @@ const deleteTarget = ref<{ id: string; title: string } | null>(null)
 const showDescModal = ref(false)
 const editProjectDesc = ref('')
 const savingDesc = ref(false)
-const showFullDesc = ref(true)
+const showFullDesc = ref(false)
 
 function openDescModal() {
   editProjectDesc.value = projects.currentProject?.lyrics || ''
@@ -542,8 +542,23 @@ function formatSize(bytes: number): string {
         <template v-if="projects.currentProject.lyrics">
           <div
             class="text-sm text-secondary whitespace-pre-line"
+            :class="!showFullDesc && 'line-clamp-4'"
             v-html="projects.currentProject.lyrics"
           />
+          <button
+            v-if="showFullDesc"
+            class="text-xs text-primary hover:underline mt-1"
+            @click="showFullDesc = false"
+          >
+            Скрыть
+          </button>
+          <button
+            v-else
+            class="text-xs text-primary hover:underline mt-1"
+            @click="showFullDesc = true"
+          >
+            Показать всё
+          </button>
         </template>
         <p v-else class="text-sm text-secondary/50 italic">Текст песни отсутствует</p>
       </div>
