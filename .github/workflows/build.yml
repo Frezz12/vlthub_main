@@ -1,4 +1,4 @@
-name: Build VLTHub
+name: Build & Release VLTHub
 
 on:
   push:
@@ -75,7 +75,34 @@ jobs:
       - name: Upload bundles
         uses: actions/upload-artifact@v4
         with:
-          name: VLTHub-${{ matrix.platform }}
+          name: bundles-${{ matrix.platform }}
           path: |
             apps/desktop/src-tauri/target/release/bundle/**/*
           if-no-files-found: warn
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all bundles
+        uses: actions/download-artifact@v4
+        with:
+          pattern: bundles-*
+          merge-multiple: true
+          path: bundles
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: VLTHub ${{ github.ref_name }}
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          generate_release_notes: true
+          files: bundles/**/*
