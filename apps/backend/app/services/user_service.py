@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -73,24 +75,24 @@ async def unfollow_user(session: AsyncSession, follower_id: str, following_id: s
     return True
 
 
-async def get_followers(session: AsyncSession, user_id: str) -> list[User]:
+async def get_followers(session: AsyncSession, user_id: str) -> list[tuple[User, datetime]]:
     result = await session.execute(
-        select(User)
+        select(User, Follow.created_at)
         .join(Follow, Follow.follower_id == User.id)
         .where(Follow.following_id == user_id)
         .order_by(Follow.created_at.desc())
     )
-    return list(result.scalars().all())
+    return list(result.all())
 
 
-async def get_following(session: AsyncSession, user_id: str) -> list[User]:
+async def get_following(session: AsyncSession, user_id: str) -> list[tuple[User, datetime]]:
     result = await session.execute(
-        select(User)
+        select(User, Follow.created_at)
         .join(Follow, Follow.following_id == User.id)
         .where(Follow.follower_id == user_id)
         .order_by(Follow.created_at.desc())
     )
-    return list(result.scalars().all())
+    return list(result.all())
 
 
 async def get_follower_count(session: AsyncSession, user_id: str) -> int:

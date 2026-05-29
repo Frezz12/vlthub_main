@@ -4,6 +4,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.core.database import get_session
@@ -379,9 +380,9 @@ async def get_followers(
     target = result.scalar_one_or_none()
     if not target:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    followers = await user_service.get_followers(session, target.id)
+    followers_data = await user_service.get_followers(session, target.id)
 
-    follower_ids = [f.id for f in followers]
+    follower_ids = [f.id for f, _ in followers_data]
     if follower_ids:
         ub_result = await session.execute(
             select(UserBadge).options(selectinload(UserBadge.badge))
@@ -401,9 +402,9 @@ async def get_followers(
             username=f.username,
             avatar_url=f.avatar_url,
             active_badge=active_badges_map.get(f.id),
-            followed_at=datetime.now(),
+            followed_at=followed_at,
         )
-        for f in followers
+        for f, followed_at in followers_data
     ]
 
 
@@ -417,9 +418,9 @@ async def get_following(
     target = result.scalar_one_or_none()
     if not target:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    following = await user_service.get_following(session, target.id)
+    following_data = await user_service.get_following(session, target.id)
 
-    following_ids = [f.id for f in following]
+    following_ids = [f.id for f, _ in following_data]
     if following_ids:
         ub_result = await session.execute(
             select(UserBadge).options(selectinload(UserBadge.badge))
@@ -439,7 +440,7 @@ async def get_following(
             username=f.username,
             avatar_url=f.avatar_url,
             active_badge=active_badges_map.get(f.id),
-            followed_at=datetime.now(),
+            followed_at=followed_at,
         )
-        for f in following
+        for f, followed_at in following_data
     ]

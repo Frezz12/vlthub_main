@@ -96,7 +96,7 @@ jobs:
             fi
             echo "Signing: $(basename "$file")"
             TAURI_SIGNING_PRIVATE_KEY="$KEY" TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$PASS" \
-              npx @tauri-apps/cli sign sign --file "$file" 2>&1 || echo "::warning::Failed to sign $(basename "$file")"
+              npx @tauri-apps/cli signer sign --file "$file" 2>&1 || echo "::warning::Failed to sign $(basename "$file")"
           done
 
           echo "=== .sig files ==="
