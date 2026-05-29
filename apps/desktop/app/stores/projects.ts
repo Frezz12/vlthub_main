@@ -195,6 +195,16 @@ export const useProjectsStore = defineStore('projects', {
       }
     },
 
+    async leaveProject(projectId: string) {
+      await useApiFetch(`/api/v1/projects/${projectId}/leave`, {
+        method: 'POST',
+        headers: this._authHeaders(),
+      })
+      this.items = this.items.filter((p) => p.id !== projectId)
+      this.total--
+      if (this.current?.id === projectId) this.current = null
+    },
+
     async addExternalArtist(projectId: string, data: ExternalArtistCreate) {
       return useApiFetch(`/api/v1/projects/${projectId}/external-artists`, {
         method: 'POST',

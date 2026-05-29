@@ -271,9 +271,12 @@ async def update_project(
     user: User = Depends(get_current_user),
 ):
     payload = body.model_dump(exclude_unset=True)
-    project = await project_service.update_project(session, project_id, payload)
+    project = await project_service.get_project(session, project_id)
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    if "is_archived" in payload and project.owner_id != user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the owner can archive the project")
+    project = await project_service.update_project(session, project_id, payload)
     if payload:
         await log_activity(
             session,
@@ -317,6 +320,24 @@ async def delete_project(
     deleted = await project_service.delete_project(session, project_id)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
+
+@router.post("/{project_id}/leave", status_code=status.HTTP_200_OK)
+async def leave_project(
+    project_id: str,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    from app.models.project import Project
+    from sqlalchemy import select
+    result = await session.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    if project.owner_id == user.id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Owner cannot leave the project")
+    await project_service.leave_project(session, project_id, user.id)
+    return {"detail": "You have left the project"}
 
 
 @router.post("/{project_id}/collaborators")

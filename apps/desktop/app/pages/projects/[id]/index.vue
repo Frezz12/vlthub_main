@@ -133,9 +133,13 @@ async function handleDelete() {
 
 async function confirmDeleteProject() {
   showDeleteProjectConfirm.value = false
-  await projects.deleteProject(route.params.id as string)
-  toast.show('Проект удалён', 'success')
-  navigateTo('/')
+  try {
+    await projects.deleteProject(route.params.id as string)
+    toast.show('Проект удалён', 'success')
+    navigateTo('/')
+  } catch (e: any) {
+    toast.show(formatError(e), 'error')
+  }
 }
 
 function refreshPage() {

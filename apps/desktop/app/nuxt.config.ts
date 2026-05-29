@@ -30,7 +30,7 @@ export default defineNuxtConfig({
   vite: {
     define: {
       __API_BASE_URL__: JSON.stringify(
-        process.env.NUXT_PUBLIC_API_BASE_URL || "",
+        process.env.NUXT_PUBLIC_API_BASE_URL || "https://vlthub.ru",
       ),
     },
     server: {

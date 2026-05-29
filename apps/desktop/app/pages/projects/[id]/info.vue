@@ -3,8 +3,11 @@ definePageMeta({ middleware: 'auth' })
 import { formatError } from '~/utils/formatError'
 
 const route = useRoute()
+const auth = useAuthStore()
 const projects = useProjectsStore()
 const toast = inject('toast') as { show: (msg: string, type: 'success' | 'error' | 'info') => void }
+
+const isOwner = computed(() => projects.currentProject?.owner_id === auth.user?.id)
 
 const title = ref('')
 const artists = ref('')
@@ -141,6 +144,17 @@ async function handleCoverUpload() {
     toast.show(formatError(e), 'error')
   } finally {
     uploadingCover.value = false
+  }
+}
+
+async function handleLeave() {
+  if (!confirm('Вы уверены, что хотите покинуть проект? Все права доступа будут удалены.')) return
+  try {
+    await projects.leaveProject(route.params.id as string)
+    toast.show('Вы покинули проект', 'success')
+    navigateTo('/')
+  } catch (e: any) {
+    toast.show(formatError(e), 'error')
   }
 }
 </script>
@@ -280,7 +294,7 @@ async function handleCoverUpload() {
       </div>
     </div>
 
-    <div class="card p-6 mt-4">
+    <div v-if="isOwner" class="card p-6 mt-4">
       <div class="flex items-center justify-between">
         <div>
           <h3 class="text-sm font-medium">Архивировать проект</h3>
@@ -292,6 +306,18 @@ async function handleCoverUpload() {
           @click="handleArchive"
         >
           {{ is_archived ? 'Разархивировать' : 'Архивировать' }}
+        </UiButton>
+      </div>
+    </div>
+
+    <div v-if="!isOwner" class="card p-6 mt-4 border border-danger/30">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-sm font-medium text-danger">Покинуть проект</h3>
+          <p class="text-xs text-secondary mt-0.5">Вы перестанете иметь доступ к этому проекту</p>
+        </div>
+        <UiButton variant="danger" size="sm" @click="handleLeave">
+          Покинуть
         </UiButton>
       </div>
     </div>

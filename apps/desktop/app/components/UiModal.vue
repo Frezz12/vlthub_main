@@ -18,10 +18,16 @@ function close() {
 }
 
 onMounted(() => {
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && props.modelValue) close()
-  })
+  document.addEventListener('keydown', onKeydown)
 })
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', onKeydown)
+})
+
+function onKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && props.modelValue) close()
+}
 </script>
 
 <template>
@@ -30,7 +36,6 @@ onMounted(() => {
       <div
         v-if="modelValue"
         class="fixed inset-0 z-50 flex items-start justify-center pt-8 pb-8 bg-black/40 backdrop-blur-sm overflow-y-auto"
-        @click.self="close"
       >
         <Transition name="slide" appear>
           <div

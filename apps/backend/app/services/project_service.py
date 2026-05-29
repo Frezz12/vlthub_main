@@ -59,7 +59,6 @@ async def list_projects(
 
     base_filter = or_(
         Project.owner_id == user_id,
-        Project.is_public == True,
         Project.collaborators.any(ProjectCollaborator.user_id == user_id),
         Project.access.any(ProjectAccess.user_id == user_id),
     )
@@ -112,7 +111,6 @@ async def list_projects(
         .where(
             Project.owner_id != user_id,
             or_(
-                Project.is_public == True,
                 Project.collaborators.any(ProjectCollaborator.user_id == user_id),
                 Project.access.any(ProjectAccess.user_id == user_id),
             ),
@@ -253,7 +251,6 @@ async def update_project(session: AsyncSession, project_id: str, data: dict) -> 
 
 async def delete_project(session: AsyncSession, project_id: str) -> bool:
     from pathlib import Path
-    from app.models.version import VersionFile, VersionAudioPreview, VersionComment
     from app.models.user import User
     from app.core.config import settings
 
@@ -263,38 +260,32 @@ async def delete_project(session: AsyncSession, project_id: str) -> bool:
 
     owner_id = project.owner_id
 
-    # Delete version files from disk
+    # Collect version file sizes and delete files from disk
+    from sqlalchemy.orm import selectinload
     result = await session.execute(
-        select(Version).where(Version.project_id == project_id)
+        select(Version)
+        .options(selectinload(Version.files), selectinload(Version.audio_previews))
+        .where(Version.project_id == project_id)
     )
     versions = result.scalars().all()
     total_freed = 0
     for ver in versions:
         if ver.file_size:
             total_freed += ver.file_size
-        files_result = await session.execute(
-            select(VersionFile).where(VersionFile.version_id == ver.id)
-        )
-        for f in files_result.scalars().all():
-            if f.file_path:
-                p = Path(f.file_path)
+        if ver.file_path:
+            p = Path(ver.file_path)
+            if p.exists():
+                p.unlink()
+        for item in ver.files:
+            if item.file_path:
+                p = Path(item.file_path)
                 if p.exists():
                     p.unlink()
-            await session.delete(f)
-        previews_result = await session.execute(
-            select(VersionAudioPreview).where(VersionAudioPreview.version_id == ver.id)
-        )
-        for preview in previews_result.scalars().all():
-            if preview.file_path:
-                p = Path(preview.file_path)
+        for item in ver.audio_previews:
+            if item.file_path:
+                p = Path(item.file_path)
                 if p.exists():
                     p.unlink()
-            await session.delete(preview)
-        comments_result = await session.execute(
-            select(VersionComment).where(VersionComment.version_id == ver.id)
-        )
-        for comment in comments_result.scalars().all():
-            await session.delete(comment)
 
     # Delete project storage directory
     project_dir = Path(settings.upload_dir) / project_id
@@ -309,6 +300,9 @@ async def delete_project(session: AsyncSession, project_id: str) -> bool:
         if owner:
             owner.storage_used = max(0, owner.storage_used - total_freed)
 
+    # Cascade deletes all related objects (tags, collaborators, access,
+    # share_links, versions → files/previews/comments/tasks, user_paths,
+    # access_requests) via ORM relationships
     await session.delete(project)
     return True
 
@@ -342,6 +336,32 @@ async def remove_collaborator(session: AsyncSession, project_id: str, user_id: s
     if not collab:
         return False
     await session.delete(collab)
+    return True
+
+
+async def leave_project(session: AsyncSession, project_id: str, user_id: str) -> bool:
+    from app.models.project import ProjectAccess, ProjectCollaborator
+
+    result = await session.execute(
+        select(ProjectCollaborator).where(
+            ProjectCollaborator.project_id == project_id,
+            ProjectCollaborator.user_id == user_id,
+        )
+    )
+    collab = result.scalar_one_or_none()
+    if collab:
+        await session.delete(collab)
+
+    result = await session.execute(
+        select(ProjectAccess).where(
+            ProjectAccess.project_id == project_id,
+            ProjectAccess.user_id == user_id,
+        )
+    )
+    access = result.scalar_one_or_none()
+    if access:
+        await session.delete(access)
+
     return True
 
 

@@ -36,6 +36,8 @@ class Project(Base):
     access: Mapped[list["ProjectAccess"]] = relationship(back_populates="project", cascade="all, delete-orphan")
     share_links: Mapped[list["ShareLink"]] = relationship(back_populates="project", cascade="all, delete-orphan")
     versions: Mapped[list["Version"]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    user_paths: Mapped[list["ProjectUserPath"]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    access_requests: Mapped[list["ProjectAccessRequest"]] = relationship(back_populates="project", cascade="all, delete-orphan")
 
 
 class ProjectTag(Base):
@@ -67,11 +69,13 @@ class ProjectUserPath(Base):
     __tablename__ = "project_user_paths"
 
     id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
-    project_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("projects.id"), nullable=False)
+    project_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
     user_id: Mapped[str] = mapped_column(UUID(as_uuid=False), ForeignKey("users.id"), nullable=False)
     project_path: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    project: Mapped["Project"] = relationship(back_populates="user_paths")
 
 
 class ProjectAccess(Base):
