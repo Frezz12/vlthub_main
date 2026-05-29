@@ -234,6 +234,7 @@ async function toggleFollow() {
   }
 }
 
+onMounted(loadProfile)
 
 </script>
 
