@@ -72,13 +72,20 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
+      - name: List bundle contents (debug)
+        if: always()
+        run: |
+          echo "=== Bundle dir ==="
+          ls -la apps/desktop/src-tauri/target/release/bundle/ || echo "No bundle dir"
+          echo "=== Recursive ==="
+          find apps/desktop/src-tauri/target/release/bundle/ -type f 2>/dev/null || echo "No files"
+
       - name: Upload bundles
         uses: actions/upload-artifact@v4
         with:
           name: bundles-${{ matrix.platform }}
-          path: |
-            apps/desktop/src-tauri/target/release/bundle/**/*
-          if-no-files-found: warn
+          path: apps/desktop/src-tauri/target/release/bundle/
+          if-no-files-found: error
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -94,8 +101,72 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           pattern: bundles-*
-          merge-multiple: true
           path: bundles
+          merge-multiple: true
+
+      - name: List downloaded bundles (debug)
+        if: always()
+        run: |
+          echo "=== bundles/ contents ==="
+          find bundles/ -type f 2>/dev/null || echo "No files found"
+          echo "=== tree ==="
+          ls -laR bundles/ 2>/dev/null || echo "No bundles dir"
+
+      - name: Generate latest.json
+        shell: bash
+        run: |
+          set -e
+          VERSION="${GITHUB_REF_NAME#v}"
+          BASE_URL="https://github.com/Frezz12/vlthub_main/releases/download/$GITHUB_REF_NAME"
+          PUB_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+
+          echo '{}' > latest.json
+          jq --arg v "$VERSION"     '.version = $v'       latest.json > tmp && mv tmp latest.json
+          jq --arg n "Release $GITHUB_REF_NAME" '.notes = $n' latest.json > tmp && mv tmp latest.json
+          jq --arg d "$PUB_DATE"    '.pub_date = $d'      latest.json > tmp && mv tmp latest.json
+
+          if [ -d bundles ]; then
+            for dir in bundles/*/; do
+              [ -d "$dir" ] || continue
+              dirname="$(basename "$dir")"
+
+              case "$dirname" in
+                deb|AppImage|appimage) target="linux-x86_64" ;;
+                msi|nsis|wix)          target="windows-x86_64" ;;
+                dmg|macos)             target="darwin-aarch64" ;;
+                *) continue ;;
+              esac
+
+              bundle=$(find "$dir" -maxdepth 1 -type f \( -name '*.AppImage' -o -name '*.deb' -o -name '*.msi' -o -name '*.exe' -o -name '*.zip' -o -name '*.dmg' \) 2>/dev/null | head -1)
+
+              if [ -z "$bundle" ]; then
+                echo "::warning::No bundle file found in $dir"
+                ls -la "$dir" >&2
+                continue
+              fi
+
+              sig="${bundle}.sig"
+              if [ ! -f "$sig" ]; then
+                echo "::warning::No .sig file for $(basename "$bundle")"
+                continue
+              fi
+
+              SIGNATURE=$(cat "$sig")
+              BUNDLE_NAME=$(basename "$bundle")
+              URL="$BASE_URL/$BUNDLE_NAME"
+
+              jq \
+                --arg t "$target" \
+                --arg sig "$SIGNATURE" \
+                --arg url "$URL" \
+                '.platforms[$t] = {signature: $sig, url: $url}' \
+                latest.json > tmp && mv tmp latest.json
+            done
+          else
+            echo "::warning::bundles/ directory does not exist"
+          fi
+
+          jq . latest.json > /dev/null && echo "latest.json is valid"
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -105,4 +176,13 @@ jobs:
           draft: false
           prerelease: ${{ contains(github.ref_name, '-') }}
           generate_release_notes: true
-          files: bundles/**/*
+          files: |
+            bundles/**/*.msi
+            bundles/**/*.exe
+            bundles/**/*.zip
+            bundles/**/*.dmg
+            bundles/**/*.AppImage
+            bundles/**/*.deb
+            bundles/**/*.rpm
+            bundles/**/*.sig
+            latest.json
