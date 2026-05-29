@@ -88,7 +88,7 @@ jobs:
           fi
 
           echo "=== Signing bundles ==="
-          find "$BUNDLE_DIR" -type f \( -name '*.msi' -o -name '*.exe' -o -name '*.dmg' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.zip' \) | while read -r file; do
+          find "$BUNDLE_DIR" -type f \( -name '*.msi' -o -name '*.exe' -o -name '*.dmg' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.zip' -o -name '*.tar.gz' \) | while read -r file; do
             sig="${file}.sig"
             if [ -f "$sig" ]; then
               echo "Already signed: $(basename "$file")"
@@ -169,7 +169,13 @@ jobs:
                 *) continue ;;
               esac
 
-              bundle=$(find "$dir" -maxdepth 1 -type f \( -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.msi' -o -name '*.exe' -o -name '*.zip' -o -name '*.dmg' \) 2>/dev/null | head -1)
+              # On macOS, prefer .tar.gz (updater artifact) over .dmg
+              if [ "$dirname" = "dmg" ] || [ "$dirname" = "macos" ]; then
+                bundle=$(find "$dir" -maxdepth 1 -type f -name '*.tar.gz' 2>/dev/null | head -1)
+              fi
+              if [ -z "$bundle" ]; then
+                bundle=$(find "$dir" -maxdepth 1 -type f \( -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.msi' -o -name '*.exe' -o -name '*.zip' -o -name '*.dmg' -o -name '*.tar.gz' \) 2>/dev/null | head -1)
+              fi
 
               if [ -z "$bundle" ]; then
                 echo "::warning::No bundle file found in $dir"
@@ -222,5 +228,6 @@ jobs:
             bundles/**/*.AppImage
             bundles/**/*.deb
             bundles/**/*.rpm
+            bundles/**/*.tar.gz
             bundles/**/*.sig
             latest.json

@@ -70,9 +70,6 @@ function downloadUrl(file: string) {
             VLTHub — это удобное приложение для хранения, версионирования и совместной работы
             над музыкальными проектами. Загружайте проекты из любой DAW и работайте где угодно.
           </p>
-          <p class="mt-2 text-sm text-secondary/60">
-            Версия 0.7.1 · Бесплатно · Для macOS и Windows
-          </p>
         </div>
 
         <div class="mt-10 flex flex-wrap items-center justify-center gap-4 animate-fade-in-up delay-3">
@@ -100,14 +97,6 @@ function downloadUrl(file: string) {
               Web версия
             </UiButton>
           </a>
-        </div>
-
-        <div class="mt-6 flex items-center justify-center gap-6 text-xs text-secondary/50">
-          <a :href="downloadUrl(downloadLinks.macIntel.file)" class="hover:text-primary transition-colors">macOS (Intel)</a>
-          <span class="text-secondary/20">·</span>
-          <NuxtLink to="/login" class="hover:text-primary transition-colors">Войти</NuxtLink>
-          <span class="text-secondary/20">·</span>
-          <NuxtLink to="/register" class="hover:text-primary transition-colors">Регистрация</NuxtLink>
         </div>
       </div>
     </section>

@@ -2,7 +2,7 @@
 const auth = useAuthStore()
 const route = useRoute()
 
-const appVersion = ref('0.7.2')
+const appVersion = ref('0.7.3')
 
 const isAuthPage = computed(() =>
   ['/login', '/register', '/forgot-password', '/reset-password', '/confirm-email'].includes(route.path),
