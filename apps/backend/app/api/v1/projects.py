@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pathlib import Path
 
 from app.api.deps import get_project_or_404
+from app.core.config import settings
 from app.core.database import get_session
 from app.core.dependencies import get_current_user
 from app.models.project import Project, ProjectAccess, ProjectCollaborator, ProjectUserPath
@@ -114,6 +115,7 @@ async def upload_project_cover(
     cover_path.write_bytes(content)
     project.cover_url = f"/uploads/{cover_rel}"
     await session.commit()
+    await session.refresh(project)
     tags = [t.tag for t in project.tags] if project.tags else []
     version_count = await project_service.get_version_count(session, project.id)
     total_size = await project_service.get_total_version_size(session, project.id)
