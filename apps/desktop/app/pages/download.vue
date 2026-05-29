@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import AnimatedBackground from '~/components/AnimatedBackground.vue'
-
 const features = [
   {
     icon: 'M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4',
@@ -35,9 +33,9 @@ const features = [
 ]
 
 const downloadLinks = {
-  mac: { label: 'macOS (Apple Silicon)', arch: 'arm64', file: 'VLTHub_0.2.0_aarch64.dmg' },
-  macIntel: { label: 'macOS (Intel)', arch: 'x64', file: 'VLTHub_0.2.0_x64.dmg' },
-  windows: { label: 'Windows', arch: 'x64', file: 'VLTHub_0.2.0_x64.exe' },
+  mac: { label: 'macOS (Apple Silicon)', arch: 'arm64', file: 'VLTHub_0.7.1_aarch64.dmg' },
+  macIntel: { label: 'macOS (Intel)', arch: 'x64', file: 'VLTHub_0.7.1_x64.dmg' },
+  windows: { label: 'Windows', arch: 'x64', file: 'VLTHub_0.7.1_x64-setup.exe' },
 }
 
 const apiBaseUrl = (typeof __API_BASE_URL__ !== 'undefined' && __API_BASE_URL__) ? __API_BASE_URL__ : 'https://vlthub.ru'
@@ -48,22 +46,35 @@ function downloadUrl(file: string) {
 </script>
 
 <template>
-  <div class="relative min-h-screen">
-    <AnimatedBackground />
+  <div class="relative w-full overflow-x-hidden">
+    <!-- Background gradient -->
+    <div class="fixed inset-0 -z-10">
+      <div class="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-surface" />
+      <div class="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-primary/10 rounded-full blur-[120px]" />
+      <div class="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[100px]" />
+    </div>
 
     <!-- Hero -->
-    <section class="relative pt-24 pb-16 sm:pt-32 sm:pb-24 px-4">
+    <section class="relative pt-20 pb-16 sm:pt-28 sm:pb-24 px-4">
       <div class="max-w-4xl mx-auto text-center">
         <div class="mb-8 animate-fade-in-up">
-          <AppLogo size="lg" />
+          <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-purple-500/20 border border-primary/10 mb-6">
+            <svg class="w-10 h-10 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight text-foreground">
+            Менеджер DAW-проектов
+          </h1>
+          <p class="mt-4 text-lg sm:text-xl text-secondary max-w-2xl mx-auto">
+            VLTHub — это удобное приложение для хранения, версионирования и совместной работы
+            над музыкальными проектами. Загружайте проекты из любой DAW и работайте где угодно.
+          </p>
+          <p class="mt-2 text-sm text-secondary/60">
+            Версия 0.7.1 · Бесплатно · Для macOS и Windows
+          </p>
         </div>
-        <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight text-foreground animate-fade-in-up delay-1">
-          Менеджер DAW-проектов
-        </h1>
-        <p class="mt-4 text-lg sm:text-xl text-secondary max-w-2xl mx-auto animate-fade-in-up delay-2">
-          VLTHub — это удобное приложение для хранения, версионирования и совместной работы
-          над музыкальными проектами. Загружайте проекты из любой DAW и работайте где угодно.
-        </p>
+
         <div class="mt-10 flex flex-wrap items-center justify-center gap-4 animate-fade-in-up delay-3">
           <a :href="downloadUrl(downloadLinks.mac.file)">
             <UiButton size="lg" class="gap-3">
@@ -81,12 +92,28 @@ function downloadUrl(file: string) {
               Скачать для Windows
             </UiButton>
           </a>
+          <a href="https://vlthub.ru" target="_blank">
+            <UiButton variant="ghost" size="lg" class="gap-3">
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+              </svg>
+              Web версия
+            </UiButton>
+          </a>
+        </div>
+
+        <div class="mt-6 flex items-center justify-center gap-6 text-xs text-secondary/50">
+          <a :href="downloadUrl(downloadLinks.macIntel.file)" class="hover:text-primary transition-colors">macOS (Intel)</a>
+          <span class="text-secondary/20">·</span>
+          <NuxtLink to="/login" class="hover:text-primary transition-colors">Войти</NuxtLink>
+          <span class="text-secondary/20">·</span>
+          <NuxtLink to="/register" class="hover:text-primary transition-colors">Регистрация</NuxtLink>
         </div>
       </div>
     </section>
 
     <!-- Features -->
-    <section class="py-16 sm:py-20 px-4 border-t border-separator">
+    <section class="py-16 sm:py-20 px-4">
       <div class="max-w-6xl mx-auto">
         <h2 class="text-3xl sm:text-4xl font-bold text-center text-foreground mb-4">Возможности</h2>
         <p class="text-secondary text-center max-w-xl mx-auto mb-12 text-base">
@@ -96,7 +123,7 @@ function downloadUrl(file: string) {
           <div
             v-for="(f, i) in features"
             :key="i"
-            class="card p-6 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 group"
+            class="card p-6 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 group bg-gradient-to-br from-background/80 to-background/40 backdrop-blur-sm border border-separator/50"
           >
             <div class="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-4 group-hover:bg-primary group-hover:text-white transition-all duration-300">
               <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
@@ -118,18 +145,18 @@ function downloadUrl(file: string) {
           Всё просто: установите приложение, выберите папку с проектом и сохраните его
         </p>
         <div class="grid sm:grid-cols-3 gap-8 text-center">
-          <div>
-            <div class="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4 text-2xl font-bold">1</div>
+          <div class="p-6">
+            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/20 to-purple-500/20 text-primary flex items-center justify-center mx-auto mb-4 text-2xl font-bold border border-primary/10">1</div>
             <h3 class="font-semibold text-foreground mb-2">Установите приложение</h3>
             <p class="text-sm text-secondary">Скачайте VLTHub для вашей платформы и установите</p>
           </div>
-          <div>
-            <div class="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4 text-2xl font-bold">2</div>
+          <div class="p-6">
+            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/20 to-purple-500/20 text-primary flex items-center justify-center mx-auto mb-4 text-2xl font-bold border border-primary/10">2</div>
             <h3 class="font-semibold text-foreground mb-2">Выберите папку проекта</h3>
             <p class="text-sm text-secondary">Укажите папку с вашим DAW-проектом в удобном диалоге</p>
           </div>
-          <div>
-            <div class="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4 text-2xl font-bold">3</div>
+          <div class="p-6">
+            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/20 to-purple-500/20 text-primary flex items-center justify-center mx-auto mb-4 text-2xl font-bold border border-primary/10">3</div>
             <h3 class="font-semibold text-foreground mb-2">Сохраните в облако</h3>
             <p class="text-sm text-secondary">Проект автоматически упакуется и загрузится на сервер</p>
           </div>
@@ -145,21 +172,57 @@ function downloadUrl(file: string) {
           VLTHub пригодится каждому, кто работает с музыкой
         </p>
         <div class="grid sm:grid-cols-3 gap-8 text-left">
-          <div class="card p-6">
+          <div class="card p-6 bg-gradient-to-br from-background/80 to-background/40 backdrop-blur-sm border border-separator/50">
             <p class="text-2xl mb-2">🎹</p>
             <h3 class="font-semibold text-foreground mb-2">Продюсеры</h3>
             <p class="text-sm text-secondary leading-relaxed">Храните биты, инструменталы и готовые треки. Больше никаких «final_v2_окончательный.flp»</p>
           </div>
-          <div class="card p-6">
+          <div class="card p-6 bg-gradient-to-br from-background/80 to-background/40 backdrop-blur-sm border border-separator/50">
             <p class="text-2xl mb-2">🎧</p>
             <h3 class="font-semibold text-foreground mb-2">Саунд-дизайнеры</h3>
             <p class="text-sm text-secondary leading-relaxed">Версионируйте сэшны, пресеты и проекты. В любой момент вернитесь к любому варианту</p>
           </div>
-          <div class="card p-6">
+          <div class="card p-6 bg-gradient-to-br from-background/80 to-background/40 backdrop-blur-sm border border-separator/50">
             <p class="text-2xl mb-2">🤝</p>
             <h3 class="font-semibold text-foreground mb-2">Коллабораторы</h3>
             <p class="text-sm text-secondary leading-relaxed">Делитесь проектами с командой, управляйте доступом и работайте вместе без путаницы в версиях</p>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="py-16 sm:py-20 px-4 border-t border-separator">
+      <div class="max-w-2xl mx-auto text-center">
+        <h2 class="text-3xl sm:text-4xl font-bold text-foreground mb-4">Готовы начать?</h2>
+        <p class="text-secondary max-w-lg mx-auto mb-8 text-base">
+          Скачайте приложение или откройте веб-версию прямо сейчас
+        </p>
+        <div class="flex flex-wrap items-center justify-center gap-4">
+          <a :href="downloadUrl(downloadLinks.mac.file)">
+            <UiButton size="lg" class="gap-3">
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Скачать для macOS
+            </UiButton>
+          </a>
+          <a :href="downloadUrl(downloadLinks.windows.file)">
+            <UiButton variant="secondary" size="lg" class="gap-3">
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              Скачать для Windows
+            </UiButton>
+          </a>
+          <a href="https://vlthub.ru" target="_blank">
+            <UiButton variant="ghost" size="lg" class="gap-3">
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+              </svg>
+              Web версия
+            </UiButton>
+          </a>
         </div>
       </div>
     </section>
@@ -173,7 +236,7 @@ function downloadUrl(file: string) {
         <div class="flex items-center gap-6 text-xs text-secondary/50">
           <NuxtLink to="/login" class="hover:text-primary transition-colors">Войти</NuxtLink>
           <NuxtLink to="/register" class="hover:text-primary transition-colors">Регистрация</NuxtLink>
-          <span>v0.2.0</span>
+          <span>v0.7.1</span>
         </div>
       </div>
     </footer>

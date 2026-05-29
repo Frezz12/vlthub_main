@@ -71,7 +71,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
-      - name: Sign bundles manually
+      - name: Sign bundles (updater .sig files)
         shell: bash
         run: |
           BUNDLE_DIR="apps/desktop/src-tauri/target/release/bundle"
@@ -83,7 +83,7 @@ jobs:
           echo "PASS length: ${#PASS}"
 
           if [ -z "$KEY" ] || [ -z "$PASS" ]; then
-            echo "::warning::Signing key or password not set"
+            echo "::warning::Signing key or password not set — skipping manual signing"
             exit 0
           fi
 
@@ -96,10 +96,10 @@ jobs:
             fi
             echo "Signing: $(basename "$file")"
             TAURI_SIGNING_PRIVATE_KEY="$KEY" TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$PASS" \
-              npx @tauri-apps/signer sign "$file" 2>&1 || echo "::warning::Failed to sign $(basename "$file")"
+              npx @tauri-apps/cli signer sign "$file" 2>&1 || echo "::warning::Failed to sign $(basename "$file")"
           done
 
-          echo "=== .sig files ==="
+          echo "=== .sig files generated ==="
           find "$BUNDLE_DIR" -name '*.sig' -type f
 
       - name: List bundle contents (debug)

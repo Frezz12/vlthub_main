@@ -2,13 +2,15 @@
 const auth = useAuthStore()
 const route = useRoute()
 
-const appVersion = ref('0.7.1')
+const appVersion = ref('0.7.2')
 
 const isAuthPage = computed(() =>
   ['/login', '/register', '/forgot-password', '/reset-password', '/confirm-email'].includes(route.path),
 )
 
 const showSidebar = computed(() => !isAuthPage.value && auth.isAuthenticated)
+const isDownloadPage = computed(() => route.path === '/download')
+const isLandingPage = computed(() => isAuthPage.value || isDownloadPage.value)
 
 type UpdateState = 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error'
 
@@ -129,8 +131,8 @@ if (import.meta.client) {
 
 <template>
   <div class="min-h-screen app-bg transition-colors duration-200">
-    <AppHeader v-if="!isAuthPage" />
-    <div class="flex" :class="isAuthPage ? '' : 'pt-14'">
+    <AppHeader v-if="!isLandingPage" />
+    <div class="flex" :class="isLandingPage ? '' : 'pt-14'">
       <AppSidebar v-if="showSidebar" />
       <main
         class="flex-1 ml-16 transition-all duration-300"
@@ -144,6 +146,7 @@ if (import.meta.client) {
     <UploadProgressToast />
     <DownloadProgressToast />
     <button
+      v-if="!isDownloadPage"
       class="fixed bottom-4 right-4 z-[200] text-[11px] select-none transition-colors flex items-center gap-1.5"
       :class="updateState === 'available' ? 'text-primary/60 hover:text-primary cursor-pointer' : 'text-white/20 pointer-events-none'"
       @click="openUpdate"
