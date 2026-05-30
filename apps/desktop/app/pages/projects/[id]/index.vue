@@ -41,6 +41,9 @@ const showDeleteConfirm = ref(false)
 const showDeleteProjectConfirm = ref(false)
 const deleteTarget = ref<{ id: string; title: string } | null>(null)
 
+const showDownloadModal = ref(false)
+const downloadVersionId = ref<string | null>(null)
+
 const showDescModal = ref(false)
 const editProjectDesc = ref('')
 const savingDesc = ref(false)
@@ -275,19 +278,17 @@ async function confirmDelete() {
   }
 }
 
-async function handleDownloadVersion(versionId: string) {
+async function handleDownloadZip(versionId: string, savePath: string | null = null) {
   downloadingVer.value = versionId
   downloadProgress.value = 0
   const dlStore = useDownloadProgress()
   try {
     if (isTokenExpired(auth.accessToken)) {
-      console.log('token expired, refreshing')
       const refreshed = await auth.refresh()
       if (!refreshed) {
         toast.show('Сессия истекла, войдите снова', 'error')
         return
       }
-      console.log('token refreshed')
     }
 
     const res = await fetch(__API_BASE_URL__ + `/api/v1/projects/${route.params.id as string}/versions/${versionId}/download`, {
@@ -302,12 +303,12 @@ async function handleDownloadVersion(versionId: string) {
     const defaultName = serverFileName || `version_${versionId}.zip`
     const fullPath = defaultName.replace(/^.*[/\\]/, '')
 
-    const apiBaseUrl = (typeof __API_BASE_URL__ !== 'undefined' && __API_BASE_URL__) ? __API_BASE_URL__ : 'https://vlthub.ru'
+    const apiBaseUrl = (typeof __API_BASE_URL__ !== 'undefined' && __API_BASE_URL__) ? __API_BASE_URL__ : 'http://localhost:8000'
     const absoluteUrl = download_url.startsWith('/') ? `${apiBaseUrl}${download_url}` : download_url
 
     if ('__TAURI_INTERNALS__' in window) {
-      const savePath = await invoke<string | null>('save_file_dialog', { defaultName: fullPath })
-      if (!savePath) {
+      const dest = savePath || await invoke<string | null>('save_file_dialog', { defaultName: fullPath })
+      if (!dest) {
         toast.show('Скачивание отменено', 'info')
         return
       }
@@ -324,24 +325,26 @@ async function handleDownloadVersion(versionId: string) {
 
       await invoke('download_file', {
         url: absoluteUrl,
-        dest: savePath,
+        dest,
         label: versionId,
       })
 
       unlisten()
 
-      toast.show('', 'success', 9000, {
-        label: 'Папка',
-        onClick: () => {
-          invoke('open_in_file_manager', { path: savePath }).catch(() => {
-            toast.show('Не удалось открыть папку', 'error')
-          })
-        },
-      }, 'bottom', {
-        title: 'Файл сохранён',
-        fileLabel: fullPath,
-        path: savePath,
-      })
+      if (!savePath) {
+        toast.show('', 'success', 9000, {
+          label: 'Папка',
+          onClick: () => {
+            invoke('open_in_file_manager', { path: dest }).catch(() => {
+              toast.show('Не удалось открыть папку', 'error')
+            })
+          },
+        }, 'bottom', {
+          title: 'Файл сохранён',
+          fileLabel: fullPath,
+          path: dest,
+        })
+      }
     } else {
       const a = document.createElement('a')
       a.href = absoluteUrl
@@ -358,6 +361,47 @@ async function handleDownloadVersion(versionId: string) {
   } finally {
     downloadingVer.value = null
     downloadProgress.value = 0
+  }
+}
+
+async function handleUpdateProjectFiles() {
+  const versionId = downloadVersionId.value
+  if (!versionId) return
+  const savedPath = projects.currentProject?.my_project_path || projects.currentProject?.project_path
+  if (!savedPath) {
+    toast.show('Не указан путь к проекту', 'error')
+    return
+  }
+
+  downloadingVer.value = versionId
+  downloadProgress.value = 0
+  try {
+    const tempDir = await invoke<string>('get_temp_dir')
+    const zipName = `vlt_update_${versionId}.zip`
+    const zipPath = `${tempDir}/${zipName}`
+
+    await handleDownloadZip(versionId, zipPath)
+
+    await invoke('extract_archive', { path: zipPath, dest: savedPath })
+    await invoke('clean_temp_files', { paths: [zipPath] })
+
+    showDownloadModal.value = false
+    toast.show('Файлы проекта обновлены', 'success')
+  } catch (e: any) {
+    toast.show(formatError(e), 'error')
+  } finally {
+    downloadingVer.value = null
+    downloadProgress.value = 0
+    downloadVersionId.value = null
+  }
+}
+
+async function handleDownloadVersion(versionId: string) {
+  if ('__TAURI_INTERNALS__' in window) {
+    downloadVersionId.value = versionId
+    showDownloadModal.value = true
+  } else {
+    await handleDownloadZip(versionId)
   }
 }
 
@@ -841,6 +885,39 @@ function formatSize(bytes: number): string {
           <UiButton variant="secondary" @click="showDeleteConfirm = false; deleteTarget = null">Отмена</UiButton>
           <UiButton variant="danger" @click="confirmDelete">Удалить</UiButton>
         </div>
+      </div>
+    </UiModal>
+
+    <UiModal v-model="showDownloadModal" title="Скачать версию" max-width="420px">
+      <div class="flex flex-col gap-3">
+        <button
+          class="flex items-center gap-3 p-4 rounded-xl bg-surface-elevated border border-input-border hover:border-primary/40 hover:bg-hover transition-all text-left cursor-pointer"
+          @click="showDownloadModal = false; handleDownloadZip(downloadVersionId!)"
+        >
+          <div class="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <div>
+            <p class="text-sm font-medium text-foreground">Скачать ZIP</p>
+            <p class="text-xs text-secondary mt-0.5">Сохранить архив версии на компьютер</p>
+          </div>
+        </button>
+        <button
+          class="flex items-center gap-3 p-4 rounded-xl bg-surface-elevated border border-input-border hover:border-primary/40 hover:bg-hover transition-all text-left cursor-pointer"
+          @click="handleUpdateProjectFiles"
+        >
+          <div class="w-10 h-10 rounded-lg bg-green-500/10 text-green-500 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+            </svg>
+          </div>
+          <div>
+            <p class="text-sm font-medium text-foreground">Обновить файлы проекта</p>
+            <p class="text-xs text-secondary mt-0.5">Распаковать версию в папку проекта</p>
+          </div>
+        </button>
       </div>
     </UiModal>
 

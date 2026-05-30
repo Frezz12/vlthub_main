@@ -1,7 +1,7 @@
 const BASE =
   typeof __API_BASE_URL__ !== "undefined" && __API_BASE_URL__
     ? __API_BASE_URL__
-    : "https://vlthub.ru";
+    : "http://localhost:8000";
 
 export function useApiFetch<T = any>(url: string, opts?: any): Promise<T> {
   return $fetch<T>(url, { baseURL: BASE, ...opts });

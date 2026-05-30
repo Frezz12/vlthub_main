@@ -3,7 +3,7 @@ declare const __API_BASE_URL__: string;
 const API_BASE_URL =
   typeof __API_BASE_URL__ !== "undefined" && __API_BASE_URL__
     ? __API_BASE_URL__
-    : "https://vlthub.ru";
+    : "http://localhost:8000";
 
 export function useApi() {
   const auth = useAuthStore();

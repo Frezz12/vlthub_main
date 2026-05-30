@@ -51,7 +51,7 @@ function authHeaders() {
 }
 
 function copyProfileLink() {
-  const apiBase = typeof __API_BASE_URL__ !== 'undefined' && __API_BASE_URL__ ? __API_BASE_URL__ : 'https://vlthub.ru'
+  const apiBase = typeof __API_BASE_URL__ !== 'undefined' && __API_BASE_URL__ ? __API_BASE_URL__ : 'http://localhost:8000'
   const appUrl = apiBase
   const profileUrl = `${appUrl}/profile/${route.params.username}`
   navigator.clipboard.writeText(profileUrl)

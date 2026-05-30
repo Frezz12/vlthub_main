@@ -95,7 +95,29 @@ pub fn archive_project(path: String, dest: String) -> Result<String, String> {
 pub fn extract_archive(path: String, dest: String) -> Result<(), String> {
     let zip_file = File::open(&path).map_err(|e| e.to_string())?;
     let mut archive = zip::ZipArchive::new(zip_file).map_err(|e| e.to_string())?;
-    archive.extract(&dest).map_err(|e| e.to_string())?;
+    let dest_path = Path::new(&dest);
+
+    for i in 0..archive.len() {
+        let mut entry = archive.by_index(i).map_err(|e| e.to_string())?;
+        let entry_path = entry.name().replace('\\', "/");
+
+        if entry_path.is_empty() || entry_path.contains("..") || entry_path.starts_with('/') {
+            continue;
+        }
+
+        let full_path = dest_path.join(&entry_path);
+
+        if entry.is_dir() {
+            fs::create_dir_all(&full_path).ok();
+        } else {
+            if let Some(parent) = full_path.parent() {
+                fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+            }
+            let mut outfile = File::create(&full_path).map_err(|e| e.to_string())?;
+            std::io::copy(&mut entry, &mut outfile).map_err(|e| e.to_string())?;
+        }
+    }
+
     Ok(())
 }
 

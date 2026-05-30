@@ -9,7 +9,7 @@ const props = withDefaults(defineProps<Props>(), {
   size: 'md',
 })
 
-const API_BASE = (typeof __API_BASE_URL__ !== 'undefined' && __API_BASE_URL__) ? __API_BASE_URL__ : 'https://vlthub.ru'
+const API_BASE = (typeof __API_BASE_URL__ !== 'undefined' && __API_BASE_URL__) ? __API_BASE_URL__ : 'http://localhost:8000'
 
 const cacheKey = ref(0)
 

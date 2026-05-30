@@ -19,69 +19,22 @@ const toast = inject('toast') as {
 
 const commentText = ref('')
 const loadingComment = ref(false)
-const uploadFile = ref<File | null>(null)
-const uploading = ref(false)
-const uploadProgress = ref(0)
 const previewFile = ref<File | null>(null)
 const uploadingPreview = ref(false)
 const deletingPreviewId = ref<string | null>(null)
 
 const projectId = computed(() => route.params.id as string)
 const verId = computed(() => route.params.verId as string)
-function onUploadFileChange(e: Event) {
-  const input = e.target as HTMLInputElement
-  if (input.files?.length) {
-    uploadFile.value = input.files[0]
-  }
-}
 
 const downloadingFileId = ref<string | null>(null)
 const fileDownloadProgress = ref(0)
 
+const showDownloadModal = ref(false)
+const downloadVersionId = ref<string | null>(null)
 
-async function handleFileUpload() {
-  if (!uploadFile.value) return
-  uploading.value = true
-  uploadProgress.value = 0
-  try {
-    const chunkSize = 8 * 1024 * 1024
-    const totalSize = uploadFile.value.size
-    const totalChunks = Math.ceil(totalSize / chunkSize)
-    const endpoint = `${apiBase}/api/v1/projects/${projectId.value}/versions/${verId.value}/upload/chunk`
-    const fileName = uploadFile.value.name
+const isDesktopApp = computed(() => !!(window as any).__TAURI_INTERNALS__)
 
-    for (let i = 0; i < totalChunks; i++) {
-      const start = i * chunkSize
-      const end = Math.min(start + chunkSize, totalSize)
-      const chunk = uploadFile.value.slice(start, end)
-      const formData = new FormData()
-      formData.append('file', chunk, fileName)
-
-      const url = `${endpoint}?offset=${start}&total_size=${totalSize}`
-      const res = await fetch(url, {
-        method: 'PUT',
-        headers: { Authorization: `Bearer ${auth.accessToken}` },
-        body: formData,
-      })
-      if (!res.ok) {
-        const errBody = await res.text()
-        throw new Error(errBody || 'Upload chunk failed')
-      }
-      const data = await res.json()
-      uploadProgress.value = Math.round((data.received / data.total) * 100)
-    }
-
-    toast.show('Файл загружен', 'success')
-    await versions.fetchFiles(projectId.value, verId.value)
-  } catch (e: any) {
-    console.error('upload error', e)
-    toast.show(formatError(e), 'error')
-  } finally {
-    uploading.value = false
-    uploadFile.value = null
-    uploadProgress.value = 0
-  }
-}
+const projects = useProjectsStore()
 
 function onPreviewFileChange(e: Event) {
   const input = e.target as HTMLInputElement
@@ -131,11 +84,9 @@ async function handleDeletePreview(previewId: string) {
   }
 }
 
-async function handleDownload(file: any) {
-  if (downloadingFileId.value) return
-  downloadingFileId.value = file.id
+async function handleDownloadZip(savePath: string | null = null) {
+  downloadingFileId.value = verId.value
   fileDownloadProgress.value = 0
-
   const dlStore = useDownloadProgress()
 
   try {
@@ -144,40 +95,43 @@ async function handleDownload(file: any) {
       { method: 'POST', headers: { Authorization: `Bearer ${auth.accessToken}` } },
     )
     const dlUrl = resolveApiUrl(dlRes.download_url)
+    const fullPath = dlRes.file_name.replace(/^.*[/\\]/, '')
 
     if ('__TAURI_INTERNALS__' in window) {
-      const savePath = await invoke<string | null>('save_file_dialog', { defaultName: dlRes.file_name })
-      if (!savePath) {
+      const dest = savePath || await invoke<string | null>('save_file_dialog', { defaultName: fullPath })
+      if (!dest) {
         toast.show('Скачивание отменено', 'info')
         return
       }
 
-      dlStore.registerDownload(file.id, file.file_name)
+      dlStore.registerDownload(verId.value, fullPath)
 
       const unlisten = await import('@tauri-apps/api/event').then(m =>
         m.listen<{ label: string; progress: number }>('download-progress', (e) => {
-          if (e.payload.label === file.id) {
+          if (e.payload.label === verId.value) {
             fileDownloadProgress.value = e.payload.progress
           }
         })
       )
 
-      await invoke('download_file', { url: dlUrl, dest: savePath, label: file.id })
+      await invoke('download_file', { url: dlUrl, dest, label: verId.value })
 
       unlisten()
 
-      toast.show('', 'success', 9000, {
-        label: 'Папка',
-        onClick: () => {
-          invoke('open_in_file_manager', { path: savePath }).catch(() => {
-            toast.show('Не удалось открыть папку', 'error')
-          })
-        },
-      }, 'bottom', {
-        title: 'Файл сохранён',
-        fileLabel: file.file_name,
-        path: savePath,
-      })
+      if (!savePath) {
+        toast.show('', 'success', 9000, {
+          label: 'Папка',
+          onClick: () => {
+            invoke('open_in_file_manager', { path: dest }).catch(() => {
+              toast.show('Не удалось открыть папку', 'error')
+            })
+          },
+        }, 'bottom', {
+          title: 'Файл сохранён',
+          fileLabel: fullPath,
+          path: dest,
+        })
+      }
     } else {
       const res = await fetch(dlUrl, {
         headers: { Authorization: `Bearer ${auth.accessToken}` },
@@ -187,7 +141,7 @@ async function handleDownload(file: any) {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = file.file_name
+      a.download = fullPath
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -196,12 +150,53 @@ async function handleDownload(file: any) {
     }
   } catch (e: any) {
     console.error('download error', e)
+    dlStore.markError(verId.value, formatError(e))
     toast.show(formatError(e), 'error')
   } finally {
     downloadingFileId.value = null
     fileDownloadProgress.value = 0
   }
 }
+
+async function handleUpdateProjectFiles() {
+  const savedPath = projects.currentProject?.my_project_path || projects.currentProject?.project_path
+  if (!savedPath) {
+    toast.show('Не указан путь к проекту', 'error')
+    return
+  }
+
+  downloadingFileId.value = verId.value
+  fileDownloadProgress.value = 0
+  try {
+    const tempDir = await invoke<string>('get_temp_dir')
+    const zipName = `vlt_update_${verId.value}.zip`
+    const zipPath = `${tempDir}/${zipName}`
+
+    await handleDownloadZip(zipPath)
+
+    await invoke('extract_archive', { path: zipPath, dest: savedPath })
+    await invoke('clean_temp_files', { paths: [zipPath] })
+
+    showDownloadModal.value = false
+    toast.show('Файлы проекта обновлены', 'success')
+  } catch (e: any) {
+    toast.show(formatError(e), 'error')
+  } finally {
+    downloadingFileId.value = null
+    fileDownloadProgress.value = 0
+    downloadVersionId.value = null
+  }
+}
+
+async function handleDownload(file: any) {
+  if (isDesktopApp.value) {
+    downloadVersionId.value = verId.value
+    showDownloadModal.value = true
+  } else {
+    await handleDownloadZip()
+  }
+}
+
 
 const tasks = ref<VersionTaskOut[]>([])
 const taskText = ref('')
@@ -395,28 +390,7 @@ async function handleDeleteComment(commentId: string) {
         </div>
         <div v-if="!versions.files.length" class="text-sm text-secondary py-2">Нет загруженных файлов</div>
 
-        <div class="border-t border-separator pt-3 mt-3">
-          <label class="flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-input-border p-3 cursor-pointer hover:border-primary transition-colors">
-            <svg class="w-4 h-4 text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-            </svg>
-            <span class="text-sm text-secondary">{{ uploadFile ? uploadFile.name : 'Загрузить файл' }}</span>
-            <input type="file" class="hidden" accept=".zip,.wav,.mp3,.aif,.aiff,.flac,.logicx,.als,.flp,.cpr,.rpp" @change="onUploadFileChange" />
-          </label>
-          <div v-if="uploadFile && !uploading" class="flex items-center justify-between mt-2">
-            <span class="text-xs text-secondary">{{ (uploadFile.size / 1024 / 1024).toFixed(1) }} MB</span>
-            <UiButton size="sm" @click="handleFileUpload">Загрузить</UiButton>
-          </div>
-          <div v-if="uploading" class="flex flex-col gap-1 mt-2">
-            <div class="flex items-center justify-between text-xs text-secondary">
-              <span>Загрузка...</span>
-              <span>{{ uploadProgress }}%</span>
-            </div>
-            <div class="h-1 rounded-full bg-btn-secondary overflow-hidden">
-              <div class="h-full rounded-full bg-primary transition-all duration-300" :style="{ width: uploadProgress + '%' }"></div>
-            </div>
-          </div>
-        </div>
+
       </div>
 
       <!-- Comments -->
@@ -518,4 +492,33 @@ async function handleDeleteComment(commentId: string) {
       </div>
     </template>
   </div>
+
+  <UiModal v-model="showDownloadModal" title="Скачать версию" max-width="420px">
+    <div class="flex flex-col gap-3 p-1">
+      <p class="text-sm text-secondary leading-relaxed">
+        Выберите способ загрузки:
+      </p>
+      <UiButton
+        class="w-full flex items-center justify-center gap-2 h-10"
+        :disabled="downloadingFileId === verId && !downloadVersionId"
+        @click="handleDownloadZip()"
+      >
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+        Скачать ZIP
+      </UiButton>
+      <UiButton
+        variant="secondary"
+        class="w-full flex items-center justify-center gap-2 h-10"
+        :disabled="downloadingFileId === verId"
+        @click="handleUpdateProjectFiles"
+      >
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+        Обновить файлы проекта
+      </UiButton>
+    </div>
+  </UiModal>
 </template>

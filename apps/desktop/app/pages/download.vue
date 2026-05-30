@@ -208,7 +208,7 @@ onUnmounted(() => {
         </div>
 
         <div v-if="downloadLinks?.mac || downloadLinks?.macIntel" class="mt-6 mx-auto max-w-lg rounded-xl bg-amber-500/5 border border-amber-500/15 p-3 text-left">
-          <p class="text-xs text-amber-600/80 dark:text-amber-400/80 leading-relaxed">
+          <p class="text-xs text-amber-600 dark:text-amber-400/80 leading-relaxed">
             <span class="font-medium">Для macOS:</span> После установки может потребоваться снять карантин —
             откройте Терминал и выполните:
           </p>
@@ -222,6 +222,13 @@ onUnmounted(() => {
     <!-- Decorative divider -->
     <div class="relative flex items-center justify-center py-4">
       <div class="w-px h-12 bg-gradient-to-b from-transparent via-primary/20 to-transparent" />
+    </div>
+
+    <!-- Desktop recommendation -->
+    <div class="px-4">
+      <div class="max-w-2xl mx-auto rounded-xl bg-primary/5 border border-primary/15 p-4 text-center">
+        <p class="text-sm text-primary/80 font-medium">💡 Веб-версия имеет ограничения. Скачайте десктопное приложение для полного функционала: загрузка проектов, управление версиями и многое другое.</p>
+      </div>
     </div>
 
     <!-- Features -->
