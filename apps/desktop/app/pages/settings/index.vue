@@ -231,6 +231,13 @@ function usagePercent(used: number, limit: number): number {
   return Math.round((used / limit) * 100)
 }
 
+function copyReferralCode() {
+  if (auth.user?.referral_code) {
+    navigator.clipboard.writeText(auth.user.referral_code)
+    toast.show('Код скопирован', 'success')
+  }
+}
+
 </script>
 
 <template>
@@ -475,6 +482,22 @@ function usagePercent(used: number, limit: number): number {
           :style="{ width: usagePercent(auth.user.storage_used || 0, auth.user.storage_limit || 0) + '%' }"
         />
       </div>
+    </div>
+
+    <!-- Referral -->
+    <div v-if="auth.user?.referral_code" class="card p-6">
+      <h2 class="text-base font-semibold mb-1">Реферальная программа</h2>
+      <p class="text-sm text-secondary mb-3">Приглашайте друзей и получайте +1 ГБ за каждого!</p>
+      <div class="flex items-center gap-3 mb-2">
+        <span class="text-lg font-mono font-bold tracking-wider text-primary">{{ auth.user.referral_code }}</span>
+        <button
+          class="px-3 py-1.5 text-xs font-medium rounded-lg bg-primary text-white hover:opacity-90 transition-opacity border-none cursor-pointer"
+          @click="copyReferralCode"
+        >
+          Скопировать
+        </button>
+      </div>
+      <p class="text-xs text-secondary">Приглашено: <span class="text-foreground font-medium">{{ auth.user.referrals_count || 0 }}</span></p>
     </div>
 
     <!-- Badges -->

@@ -4,6 +4,7 @@ export interface RegisterRequest {
   password: string
   nickname: string
   username: string
+  referral_code?: string | null
 }
 
 export interface LoginRequest {
@@ -72,6 +73,8 @@ export interface UserOut {
   settings: Record<string, any>
   created_at: string
   is_admin?: boolean
+  referral_code: string
+  referrals_count?: number
   storage_limit?: number
   storage_used?: number
   badges?: UserBadgeBrief[]

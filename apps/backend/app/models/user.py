@@ -28,6 +28,9 @@ class User(Base):
     settings: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True, default=dict)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     pin_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    referral_code: Mapped[str] = mapped_column(String(20), unique=True, nullable=False, index=True)
+    referred_by: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    referrals_count: Mapped[int] = mapped_column(default=0)
     storage_limit: Mapped[int] = mapped_column(BigInteger, default=10_737_418_240)  # 10 GB
     storage_used: Mapped[int] = mapped_column(BigInteger, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

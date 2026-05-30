@@ -35,6 +35,8 @@ class UserOut(BaseModel):
     social_links: list[SocialLinkOut] = []
     settings: dict[str, Any] = {}
     is_admin: bool = False
+    referral_code: str = ""
+    referrals_count: int = 0
     storage_limit: int = 10_737_418_240
     storage_used: int = 0
     badges: list[UserBadgeBrief] = []
@@ -50,6 +52,9 @@ class UserAdminOut(BaseModel):
     username: str
     avatar_url: str | None
     is_admin: bool
+    referral_code: str = ""
+    referred_by: str | None = None
+    referrals_count: int = 0
     storage_limit: int
     storage_used: int
     created_at: datetime

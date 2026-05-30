@@ -8,6 +8,7 @@ const password = ref('')
 const passwordConfirm = ref('')
 const nickname = ref('')
 const username = ref('')
+const referralCode = ref('')
 const loading = ref(false)
 const termsAccepted = ref(false)
 const showTermsModal = ref(false)
@@ -27,7 +28,11 @@ async function handleRegister() {
   }
   loading.value = true
   try {
-    await auth.register({ email: email.value, password: password.value, nickname: nickname.value, username: username.value })
+    const data: any = { email: email.value, password: password.value, nickname: nickname.value, username: username.value }
+    if (referralCode.value.trim()) {
+      data.referral_code = referralCode.value.trim()
+    }
+    await auth.register(data)
     toast.show('Аккаунт создан', 'success')
     navigateTo('/')
   } catch (e: any) {
@@ -51,6 +56,7 @@ async function handleRegister() {
         <UiInput v-model="email" label="Email" type="email" />
         <UiInput v-model="nickname" label="Никнейм" />
         <UiInput v-model="username" label="Username" />
+        <UiInput v-model="referralCode" label="Реферальный код (если есть)" />
         <UiInput v-model="password" label="Пароль" type="password" />
         <UiInput v-model="passwordConfirm" label="Подтверждение пароля" type="password" />
 

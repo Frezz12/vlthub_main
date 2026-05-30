@@ -19,6 +19,9 @@ interface UserAdminItem {
   username: string
   avatar_url: string | null
   is_admin: boolean
+  referral_code: string
+  referred_by: string | null
+  referrals_count: number
   storage_limit: number
   storage_used: number
   created_at: string
@@ -547,6 +550,11 @@ function formatShortNumber(n: number): string {
                   :style="{ width: usagePercent(user.storage_used, user.storage_limit) + '%' }"
                 />
               </div>
+            </div>
+            <div v-if="user.referral_code" class="mt-1.5 flex items-center gap-3 text-xs text-secondary">
+              <span>Код: <span class="text-foreground font-mono">{{ user.referral_code }}</span></span>
+              <span>Привёл: <span class="text-foreground">{{ user.referrals_count || 0 }}</span></span>
+              <span v-if="user.referred_by">Приглашён кодом: <span class="text-foreground font-mono">{{ user.referred_by }}</span></span>
             </div>
           </div>
 

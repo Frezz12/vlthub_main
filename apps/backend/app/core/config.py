@@ -8,8 +8,8 @@ class Settings(BaseSettings):
     app_version:str = "0.6.1"
     debug: bool = False
 
-    database_url: str = "postgresql+asyncpg:/postgres@localhost:5433/pjasaver"
-    database_url_sync: str = "postgresql://postgres@localhost:5433/pjasaver"
+    database_url: str = "postgresql+asyncpg://postgres@localhost:5433/pjasaver"
+    database_url_sync: str = "postgresql+psycopg2://postgres@localhost:5433/pjasaver"
 
     redis_url: str = "redis://localhost:6379/0"
 

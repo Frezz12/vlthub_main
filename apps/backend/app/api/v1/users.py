@@ -89,6 +89,8 @@ def _user_to_out(user):
         social_links=[SocialLinkOut(platform=l.platform, url=l.url) for l in (sl or [])],
         settings=user.settings or {},
         is_admin=user.is_admin,
+        referral_code=user.referral_code or "",
+        referrals_count=user.referrals_count or 0,
         storage_limit=user.storage_limit,
         storage_used=user.storage_used,
         badges=_get_badges(user),
@@ -99,6 +101,11 @@ def _user_to_out(user):
 @router.get("/me", response_model=UserOut)
 async def get_me(user: User = Depends(get_current_user)):
     return _user_to_out(user)
+
+
+@router.get("/me/referral-code", response_model=dict)
+async def get_referral_code(user: User = Depends(get_current_user)):
+    return {"referral_code": user.referral_code, "referred_by": user.referred_by}
 
 
 @router.patch("/me", response_model=UserOut)

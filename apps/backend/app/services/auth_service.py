@@ -1,5 +1,6 @@
 import hashlib
 import secrets
+import string
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
@@ -18,11 +19,52 @@ from app.models.auth import EmailConfirmation, RefreshToken
 from app.models.user import User
 
 
-async def register_user(session: AsyncSession, email: str, password: str, nickname: str, username: str) -> User:
+def _generate_referral_code() -> str:
+    alphabet = string.ascii_uppercase + string.digits
+    return "VLT" + "".join(secrets.choice(alphabet) for _ in range(6))
+
+
+async def register_user(
+    session: AsyncSession,
+    email: str,
+    password: str,
+    nickname: str,
+    username: str,
+    referral_code: str | None = None,
+) -> User:
     existing = await session.execute(select(User).where((User.email == email) | (User.username == username)))
     if existing.first():
         raise ValueError("Email or username already taken")
-    user = User(email=email, password_hash=hash_password(password), nickname=nickname, username=username)
+
+    storage_limit = 10_737_418_240  # 10 GB default
+    referred_by: str | None = None
+
+    if referral_code:
+        ref_result = await session.execute(select(User).where(User.referral_code == referral_code))
+        referrer = ref_result.scalar_one_or_none()
+        if not referrer:
+            raise ValueError("Invalid referral code")
+        referred_by = referral_code
+        storage_limit = 16_118_292_480  # 15 GB for referred user
+        referrer.storage_limit += 1_073_741_824  # +1 GB for referrer
+        referrer.referrals_count = (referrer.referrals_count or 0) + 1
+
+    # Ensure unique referral code
+    while True:
+        code = _generate_referral_code()
+        exists = await session.execute(select(User).where(User.referral_code == code))
+        if not exists.scalar_one_or_none():
+            break
+
+    user = User(
+        email=email,
+        password_hash=hash_password(password),
+        nickname=nickname,
+        username=username,
+        referral_code=code,
+        referred_by=referred_by,
+        storage_limit=storage_limit,
+    )
     session.add(user)
     await session.flush()
     await session.refresh(user, ["social_links"])

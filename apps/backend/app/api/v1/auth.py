@@ -22,6 +22,7 @@ from app.schemas.auth import (
 )
 from app.schemas.user import SocialLinkOut, UserBadgeBrief, UserOut
 from app.services import auth_service
+from app.services.auth_service import _generate_referral_code
 from app.services.notification_service import create_notification
 from app.services.user_service import get_user_by_id
 
@@ -75,6 +76,8 @@ def _user_to_out(user):
         social_links=[SocialLinkOut(platform=l.platform, url=l.url) for l in sl],
         settings=user.settings or {},
         is_admin=user.is_admin,
+        referral_code=user.referral_code or "",
+        referrals_count=user.referrals_count or 0,
         storage_limit=user.storage_limit,
         storage_used=user.storage_used,
         badges=badges_out,
@@ -102,7 +105,7 @@ def _token_response(user: User, access: str, refresh: str) -> TokenResponse:
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def register(body: RegisterRequest, session: AsyncSession = Depends(get_session)):
     try:
-        user = await auth_service.register_user(session, body.email, body.password, body.nickname, body.username)
+        user = await auth_service.register_user(session, body.email, body.password, body.nickname, body.username, body.referral_code)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
     await _sync_admin_flag(session, user)
@@ -257,6 +260,13 @@ async def telegram_auth(body: TelegramAuthRequest, session: AsyncSession = Depen
             username = f"{base_username}_{suffix}"
             suffix += 1
 
+        # Generate unique referral code
+        while True:
+            code = _generate_referral_code()
+            exists = await session.execute(select(User).where(User.referral_code == code))
+            if not exists.scalar_one_or_none():
+                break
+
         user = User(
             email=f"tg_{telegram_id}@placeholder.local",
             password_hash="",
@@ -266,6 +276,7 @@ async def telegram_auth(body: TelegramAuthRequest, session: AsyncSession = Depen
             telegram_username=body.username,
             avatar_url=body.photo_url,
             is_email_confirmed=True,
+            referral_code=code,
         )
         session.add(user)
         await session.flush()

@@ -6,6 +6,7 @@ class RegisterRequest(BaseModel):
     password: str
     nickname: str
     username: str
+    referral_code: str | None = None
 
 
 class LoginRequest(BaseModel):

@@ -1,6 +1,6 @@
 [package]
 name = "pjasaver"
-version = "0.8.12"
+version = "0.8.20"
 edition = "2021"
 
 [build-dependencies]
