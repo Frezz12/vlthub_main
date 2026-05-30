@@ -18,15 +18,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            pkg-config: libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libxdo-dev
-
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
 
           - platform: macos-latest
             target: aarch64-apple-darwin
+
+          - platform: macos-13
+            target: x86_64-apple-darwin
 
     runs-on: ${{ matrix.platform }}
     timeout-minutes: 60
@@ -107,8 +106,6 @@ jobs:
         shell: bash
         run: |
           echo "=== Bundle dir ==="
-          ls -la apps/desktop/src-tauri/target/release/bundle/ || echo "No bundle dir"
-          echo "=== Recursive ==="
           find apps/desktop/src-tauri/target/release/bundle/ -type f 2>/dev/null || echo "No files"
 
       - name: Upload bundles
@@ -141,8 +138,7 @@ jobs:
         run: |
           echo "=== bundles/ contents ==="
           find bundles/ -type f 2>/dev/null || echo "No files found"
-          echo "=== tree ==="
-          ls -laR bundles/ 2>/dev/null || echo "No bundles dir"
+          ls -la bundles/ 2>/dev/null || echo "No bundles dir"
 
       - name: Generate latest.json
         shell: bash
@@ -157,65 +153,114 @@ jobs:
           jq --arg n "Release $GITHUB_REF_NAME" '.notes = $n' latest.json > tmp && mv tmp latest.json
           jq --arg d "$PUB_DATE"    '.pub_date = $d'      latest.json > tmp && mv tmp latest.json
 
-          if [ -d bundles ]; then
-            for dir in bundles/*/; do
-              [ -d "$dir" ] || continue
-              dirname="$(basename "$dir")"
-
-              case "$dirname" in
-                deb|AppImage|appimage|rpm) target="linux-x86_64" ;;
-                msi|nsis|wix)          target="windows-x86_64" ;;
-                dmg|macos)             target="darwin-aarch64" ;;
-                *) continue ;;
-              esac
-
-              # Prefer .tar.gz (updater artifact) over traditional installer on all platforms
-              bundle=$(find "$dir" -maxdepth 1 -type f -name '*.tar.gz' 2>/dev/null | head -1)
-              if [ -z "$bundle" ]; then
-                case "$dirname" in
-                  deb|AppImage|appimage|rpm)
-                    bundle=$(find "$dir" -maxdepth 1 -type f \( -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' \) 2>/dev/null | head -1) ;;
-                  msi|nsis|wix)
-                    bundle=$(find "$dir" -maxdepth 1 -type f \( -name '*.msi' -o -name '*.exe' \) 2>/dev/null | head -1) ;;
-                  dmg|macos)
-                    bundle=$(find "$dir" -maxdepth 1 -type f -name '*.dmg' 2>/dev/null | head -1) ;;
-                esac
-              fi
-
-              if [ -z "$bundle" ]; then
-                echo "::warning::No bundle file found in $dir"
-                ls -la "$dir" >&2
-                continue
-              fi
-
-              # Skip if this target already has a bundle (first match wins)
-              if jq -e ".platforms.\"$target\"" latest.json > /dev/null 2>&1; then
-                echo "Skipping $(basename "$bundle") — $target already has a bundle"
-                continue
-              fi
-
-              sig="${bundle}.sig"
-              if [ ! -f "$sig" ]; then
-                echo "::warning::No .sig file for $(basename "$bundle")"
-                continue
-              fi
-
-              SIGNATURE=$(cat "$sig")
-              BUNDLE_NAME=$(basename "$bundle")
-              URL="$BASE_URL/$BUNDLE_NAME"
-
-              jq \
-                --arg t "$target" \
-                --arg sig "$SIGNATURE" \
-                --arg url "$URL" \
-                '.platforms[$t] = {signature: $sig, url: $url}' \
-                latest.json > tmp && mv tmp latest.json
-            done
-          else
+          if [ ! -d bundles ]; then
             echo "::warning::bundles/ directory does not exist"
+            jq . latest.json > /dev/null
+            exit 0
           fi
 
-          jq . latest.json > /dev/null && echo "latest.json is valid"
+          # Determine platform key(s) from a filename.
+          # Prints lines: "platform_key|url|sig_file"
+          # First line = primary key, subsequent lines = suffixed variants.
+          classify_file() {
+            local name; name=$(basename "$1")
+            local fpath="$1"
+
+            # macOS aarch64 updater artifact (Apple Silicon) — highest priority
+            if echo "$name" | grep -qiE 'aarch64.*\.tar\.gz'; then
+              echo "darwin-aarch64|$BASE_URL/$name|${fpath}.sig"
+              echo "darwin-aarch64-app|$BASE_URL/$name|${fpath}.sig"
+              return
+            fi
+            # macOS x86_64 updater artifact (Intel)
+            if echo "$name" | grep -qiE 'x64.*\.tar\.gz'; then
+              echo "darwin-x86_64|$BASE_URL/$name|${fpath}.sig"
+              echo "darwin-x86_64-app|$BASE_URL/$name|${fpath}.sig"
+              return
+            fi
+            # Windows MSI
+            if echo "$name" | grep -qiE '\.msi$'; then
+              echo "windows-x86_64|$BASE_URL/$name|${fpath}.sig"
+              echo "windows-x86_64-msi|$BASE_URL/$name|${fpath}.sig"
+              return
+            fi
+            # Windows NSIS installer
+            if echo "$name" | grep -qiE '(^|[^a-z])setup\.exe$' || echo "$name" | grep -qiE '\-setup\.exe$'; then
+              echo "windows-x86_64|$BASE_URL/$name|${fpath}.sig"
+              echo "windows-x86_64-nsis|$BASE_URL/$name|${fpath}.sig"
+              return
+            fi
+            # macOS DMG (fallback)
+            if echo "$name" | grep -qiE 'aarch64.*\.dmg$'; then
+              echo "darwin-aarch64|$BASE_URL/$name|${fpath}.sig"
+              return
+            fi
+            if echo "$name" | grep -qiE 'x64.*\.dmg$'; then
+              echo "darwin-x86_64|$BASE_URL/$name|${fpath}.sig"
+              return
+            fi
+            # Linux AppImage
+            if echo "$name" | grep -qiE '\.AppImage$'; then
+              echo "linux-x86_64|$BASE_URL/$name|${fpath}.sig"
+              echo "linux-x86_64-appimage|$BASE_URL/$name|${fpath}.sig"
+              return
+            fi
+            # Linux deb
+            if echo "$name" | grep -qiE '\.deb$'; then
+              echo "linux-x86_64|$BASE_URL/$name|${fpath}.sig"
+              echo "linux-x86_64-deb|$BASE_URL/$name|${fpath}.sig"
+              return
+            fi
+            # Linux rpm
+            if echo "$name" | grep -qiE '\.rpm$'; then
+              echo "linux-x86_64|$BASE_URL/$name|${fpath}.sig"
+              echo "linux-x86_64-rpm|$BASE_URL/$name|${fpath}.sig"
+              return
+            fi
+          }
+
+          # Collect all candidate records: platform_key|url|sig_path
+          all_records=""
+          primary_seen=""
+
+          while IFS= read -r -d '' file; do
+            sig="${file}.sig"
+            [ -f "$sig" ] || { echo "::warning::Missing .sig for $(basename "$file")"; continue; }
+
+            mapfile -t recs < <(classify_file "$file")
+            [ ${#recs[@]} -eq 0 ] && { echo "::debug::Unrecognised file: $(basename "$file")"; continue; }
+
+            first_key="${recs[0]%%|*}"
+            # Skip if primary platform already has a bundle (first match wins)
+            if echo "$primary_seen" | grep -qiE "(^| )${first_key}( |$)"; then
+              echo "Skipping $(basename "$file") — $first_key already assigned"
+              continue
+            fi
+
+            for rec in "${recs[@]}"; do
+              key="${rec%%|*}"
+              if [ "$key" = "$first_key" ]; then
+                primary_seen="$primary_seen $first_key"
+              fi
+              all_records="$all_records"$'\n'"$rec"
+            done
+          done < <(find bundles/ -maxdepth 1 -type f ! -name '*.sig' -print0)
+
+          # Write records into latest.json (primary key first, then suffixed)
+          while IFS='|' read -r key url sig_path; do
+            [ -z "$key" ] && continue
+            signature=$(cat "$sig_path")
+            jq \
+              --arg t "$key" \
+              --arg sig "$signature" \
+              --arg url "$url" \
+              '.platforms[$t] = {signature: $sig, url: $url}' \
+              latest.json > tmp && mv tmp latest.json
+          done <<< "$all_records"
+
+          jq . latest.json > /dev/null && echo "latest.json is valid and complete"
+          echo "=== Generated latest.json ==="
+          cat latest.json
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
