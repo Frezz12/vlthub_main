@@ -49,6 +49,11 @@ class Settings(BaseSettings):
     app_base_url: str = "https://vlthub.ru"
     app_update_pub_date: str = "2026-05-29T00:00:00Z"
 
+    app_update_sig_windows: str = ""
+    app_update_sig_macos_x86_64: str = ""
+    app_update_sig_macos_aarch64: str = ""
+    app_update_sig_linux_x86_64: str = ""
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 
