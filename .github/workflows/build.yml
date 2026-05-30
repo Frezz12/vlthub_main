@@ -241,7 +241,7 @@ jobs:
               fi
               all_records="$all_records"$'\n'"$rec"
             done
-          done < <(find bundles/ -maxdepth 1 -type f ! -name '*.sig' -print0)
+          done < <(find bundles/ -type f ! -name '*.sig' -print0)
 
           # Write records into latest.json (primary key first, then suffixed)
           while IFS='|' read -r key url sig_path; do
