@@ -3,7 +3,7 @@ import { formatError } from '~/utils/formatError'
 const auth = useAuthStore()
 const route = useRoute()
 
-const appVersion = ref('0.8.11')
+const appVersion = ref('0.8.12')
 
 const isAuthPage = computed(() =>
   ['/login', '/register', '/forgot-password', '/reset-password', '/confirm-email'].includes(route.path),

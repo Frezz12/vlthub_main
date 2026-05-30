@@ -163,16 +163,22 @@ jobs:
             local name; name=$(basename "$1")
             local fpath="$1"
 
-            # macOS aarch64 updater artifact (Apple Silicon) — highest priority
+            # macOS aarch64 updater artifact (Apple Silicon)
             if echo "$name" | grep -qiE 'aarch64.*\.tar\.gz'; then
               echo "darwin-aarch64|$BASE_URL/$name|${fpath}.sig"
               echo "darwin-aarch64-app|$BASE_URL/$name|${fpath}.sig"
               return
             fi
             # macOS x86_64 updater artifact (Intel)
-            if echo "$name" | grep -qiE 'x64.*\.tar\.gz'; then
+            if echo "$name" | grep -qiE '(x64|x86_64|amd64).*\.tar\.gz'; then
               echo "darwin-x86_64|$BASE_URL/$name|${fpath}.sig"
               echo "darwin-x86_64-app|$BASE_URL/$name|${fpath}.sig"
+              return
+            fi
+            # Generic macOS updater artifact (.tar.gz without arch — fallback)
+            if echo "$name" | grep -qiE '\.tar\.gz$'; then
+              echo "darwin-aarch64|$BASE_URL/$name|${fpath}.sig"
+              echo "darwin-aarch64-app|$BASE_URL/$name|${fpath}.sig"
               return
             fi
             # Windows MSI
@@ -187,31 +193,13 @@ jobs:
               echo "windows-x86_64-nsis|$BASE_URL/$name|${fpath}.sig"
               return
             fi
-            # macOS DMG (fallback)
-            if echo "$name" | grep -qiE 'aarch64.*\.dmg$'; then
+            # macOS DMG (fallback if no updater artifact)
+            if echo "$name" | grep -qiE '(aarch64|arm64).*\.dmg$'; then
               echo "darwin-aarch64|$BASE_URL/$name|${fpath}.sig"
               return
             fi
-            if echo "$name" | grep -qiE 'x64.*\.dmg$'; then
+            if echo "$name" | grep -qiE '(x64|x86_64|amd64).*\.dmg$'; then
               echo "darwin-x86_64|$BASE_URL/$name|${fpath}.sig"
-              return
-            fi
-            # Linux AppImage
-            if echo "$name" | grep -qiE '\.AppImage$'; then
-              echo "linux-x86_64|$BASE_URL/$name|${fpath}.sig"
-              echo "linux-x86_64-appimage|$BASE_URL/$name|${fpath}.sig"
-              return
-            fi
-            # Linux deb
-            if echo "$name" | grep -qiE '\.deb$'; then
-              echo "linux-x86_64|$BASE_URL/$name|${fpath}.sig"
-              echo "linux-x86_64-deb|$BASE_URL/$name|${fpath}.sig"
-              return
-            fi
-            # Linux rpm
-            if echo "$name" | grep -qiE '\.rpm$'; then
-              echo "linux-x86_64|$BASE_URL/$name|${fpath}.sig"
-              echo "linux-x86_64-rpm|$BASE_URL/$name|${fpath}.sig"
               return
             fi
           }
