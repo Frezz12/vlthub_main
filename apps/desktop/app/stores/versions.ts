@@ -82,9 +82,22 @@ export const useVersionsStore = defineStore('versions', {
 
     async deleteVersion(projectId: string, verId: string) {
       await useApiFetch(`/api/v1/projects/${projectId}/versions/${verId}`, { method: 'DELETE', headers: this._authHeaders() })
+      const deleted = this.items.find((v) => v.id === verId)
+      const wasCurrent = deleted?.is_current
+      const deletedNumber = deleted?.version_number
       this.items = this.items.filter((v) => v.id !== verId)
       this.total--
       if (this.current?.id === verId) this.current = null
+      if (wasCurrent) {
+        this.items.forEach((v) => (v.is_current = false))
+        const prev = [...this.items]
+          .filter((v) => v.version_number < deletedNumber!)
+          .sort((a, b) => b.version_number - a.version_number)[0]
+        if (prev) {
+          prev.is_current = true
+          this.current = prev
+        }
+      }
     },
 
     async setCurrentVersion(projectId: string, verId: string) {

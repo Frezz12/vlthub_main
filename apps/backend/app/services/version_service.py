@@ -64,6 +64,10 @@ async def delete_version(session: AsyncSession, version_id: str) -> bool:
     if not version:
         return False
 
+    was_current = version.is_current
+    project_id = version.project_id
+    version_number = version.version_number
+
     # Delete version files from disk
     files = await list_version_files(session, version_id)
     for f in files:
@@ -94,6 +98,25 @@ async def delete_version(session: AsyncSession, version_id: str) -> bool:
         await session.delete(comment)
 
     await session.delete(version)
+
+    # If the deleted version was current, make the previous version current
+    if was_current:
+        # Clear is_current from any remaining versions first
+        remaining_current = await session.execute(
+            select(Version).where(Version.project_id == project_id, Version.is_current == True)
+        )
+        for v in remaining_current.scalars().all():
+            v.is_current = False
+        prev_result = await session.execute(
+            select(Version)
+            .where(Version.project_id == project_id, Version.version_number < version_number)
+            .order_by(Version.version_number.desc())
+            .limit(1)
+        )
+        prev_version = prev_result.scalar_one_or_none()
+        if prev_version:
+            prev_version.is_current = True
+
     return True
 
 

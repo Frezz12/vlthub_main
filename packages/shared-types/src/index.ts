@@ -153,6 +153,7 @@ export interface ProjectCreate {
   project_path?: string | null
   tags?: string[]
   is_public?: boolean
+  chat_enabled?: boolean
 }
 
 export interface ProjectUpdate {
@@ -166,11 +167,13 @@ export interface ProjectUpdate {
   description?: string | null
   lyrics?: string | null
   cover_url?: string | null
+  project_path?: string | null
   daw_type?: string | null
   project_path?: string | null
   is_public?: boolean | null
   is_archived?: boolean | null
   is_favorite?: boolean | null
+  chat_enabled?: boolean | null
   tags?: string[]
 }
 
@@ -189,6 +192,7 @@ export interface ProjectUpdate {
   daw_type?: string | null
   is_archived?: boolean | null
   is_favorite?: boolean | null
+  chat_enabled?: boolean | null
   tags?: string[]
 }
 
@@ -219,6 +223,7 @@ export interface ProjectOut {
   is_public: boolean
   is_archived: boolean
   is_favorite: boolean
+  chat_enabled?: boolean
   version_count?: number
   total_size?: number
   tags: string[]

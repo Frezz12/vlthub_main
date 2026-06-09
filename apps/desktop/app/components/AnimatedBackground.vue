@@ -25,7 +25,7 @@ function getCircleStyle(index: number) {
     top: `${top}%`,
     animationDuration: `${duration}s`,
     animationDelay: `${delay}s`,
-    opacity: getRandom(0.1, 0.3), // Higher opacity
+    opacity: getRandom(0.1, 0.3),
     backgroundColor: `hsl(${getRandom(180, 260)}, ${getRandom(60, 80)}%, ${getRandom(70, 90)}%)`, // Brighter, more varied blueish hues
   }
 }

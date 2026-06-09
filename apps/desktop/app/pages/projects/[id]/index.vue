@@ -22,6 +22,10 @@ const toast = inject('toast') as {
 const showVersionModal = ref(false)
 const showShareModal = ref(false)
 const savingQuick = ref(false)
+const quickAbort = ref<AbortController | null>(null)
+const quickCancelled = ref(false)
+const quickVersionId = ref<string | null>(null)
+const quickPrevCurrentId = ref<string | null>(null)
 const accessDenied = ref(false)
 const accessRequestSent = ref(false)
 const requestingAccess = ref(false)
@@ -200,21 +204,51 @@ async function handlePickFolder() {
   }
 }
 
+function cancelQuickSave() {
+  quickCancelled.value = true
+  quickAbort.value?.abort()
+  savingQuick.value = false
+  downloadProgress.value = 0
+  const verId = quickVersionId.value
+  if (verId) {
+    versions.items = versions.items.filter((v: any) => v.id !== verId)
+    versions.total--
+    const prevId = quickPrevCurrentId.value
+    if (prevId) {
+      versions.items.forEach((v: any) => (v.is_current = false))
+      const prev = versions.items.find((v: any) => v.id === prevId)
+      if (prev) prev.is_current = true
+    }
+    versions.deleteVersion(route.params.id as string, verId).catch(() => {})
+  }
+  quickVersionId.value = null
+  quickPrevCurrentId.value = null
+  quickAbort.value = null
+}
+
 async function handleQuickSave() {
   savingQuick.value = true
+  quickCancelled.value = false
+  quickAbort.value = new AbortController()
+  const signal = quickAbort.value.signal
+  let version: any = null
+
   try {
     const savedPath = projects.currentProject?.my_project_path || projects.currentProject?.project_path
 
     // Desktop app with a saved path → skip picker, archive directly
     if (isDesktopApp.value && savedPath) {
-      const version = await versions.createVersion(route.params.id as string, {
+      quickPrevCurrentId.value = versions.current?.id || null
+      version = await versions.createVersion(route.params.id as string, {
         title: `Версия ${(versions.items.length || 0) + 1}`,
         description: null,
       })
+      quickVersionId.value = version.id
       const folderName = savedPath.replace(/[/\\]$/, '').split(/[/\\]/).pop() || undefined
       const up = useUploadProgress()
-      up.registerUpload(version.id, route.params.id as string, folderName || 'project')
+      up.registerUpload(version.id, route.params.id as string, folderName || 'project', cancelQuickSave)
       await archiver.uploadTauriArchiveFromPath(savedPath, route.params.id as string, version.id, auth.accessToken!, folderName)
+      if (quickCancelled.value) return
       await versions.fetchVersions(route.params.id as string)
       toast.show('Версия сохранена', 'success')
       return
@@ -229,31 +263,42 @@ async function handleQuickSave() {
     if (newPath && newPath !== savedPath) {
       await projects.updateMyPath(route.params.id as string, newPath)
     }
-    const version = await versions.createVersion(route.params.id as string, {
+    if (quickCancelled.value) return
+
+    quickPrevCurrentId.value = versions.current?.id || null
+    version = await versions.createVersion(route.params.id as string, {
       title: `Версия ${(versions.items.length || 0) + 1}`,
       description: null,
     })
+    quickVersionId.value = version.id
     const folderName = pickedName || savedPath
       ?.replace(/[/\\]$/, '').split(/[/\\]/).pop() || undefined
     if (tauriPath) {
       const up = useUploadProgress()
-      up.registerUpload(version.id, route.params.id as string, folderName || 'project')
+      up.registerUpload(version.id, route.params.id as string, folderName || 'project', cancelQuickSave)
       await archiver.uploadTauriArchiveFromPath(tauriPath, route.params.id as string, version.id, auth.accessToken!, folderName)
     } else {
       const { blob } = await archiver.archiveProject(files, (pct) => {
+        if (quickCancelled.value) return
         downloadProgress.value = pct
-      })
+      }, signal)
+      if (quickCancelled.value) return
       await archiver.uploadArchive(blob, route.params.id as string, version.id, auth.accessToken!, (pct) => {
+        if (quickCancelled.value) return
         downloadProgress.value = pct
-      }, folderName)
+      }, folderName, signal)
     }
+    if (quickCancelled.value) return
     await versions.fetchVersions(route.params.id as string)
     toast.show('Версия сохранена', 'success')
   } catch (e: any) {
+    if (e.name === 'AbortError' || quickCancelled.value) return
     toast.show(formatError(e), 'error', 5000)
   } finally {
     savingQuick.value = false
     downloadProgress.value = 0
+    quickAbort.value = null
+    quickVersionId.value = null
   }
 }
 
@@ -313,7 +358,10 @@ async function handleDownloadZip(versionId: string, savePath: string | null = nu
         return
       }
 
-      dlStore.registerDownload(versionId, fullPath)
+      dlStore.registerDownload(versionId, fullPath, () => {
+        invoke('cancel_download', { label: versionId }).catch(() => {})
+        dlStore.removeDownload(versionId)
+      })
 
       const unlisten = await import('@tauri-apps/api/event').then(m =>
         m.listen<{ label: string; progress: number }>('download-progress', (e) => {
@@ -355,9 +403,14 @@ async function handleDownloadZip(versionId: string, savePath: string | null = nu
       toast.show('Скачивание начато', 'success')
     }
   } catch (e: any) {
-    console.error('download error', e)
-    dlStore.markError(versionId, formatError(e))
-    toast.show(formatError(e), 'error')
+    if (e?.toString?.()?.includes?.('cancelled')) {
+      dlStore.removeDownload(versionId)
+      toast.show('Скачивание отменено', 'info')
+    } else {
+      console.error('download error', e)
+      dlStore.markError(versionId, formatError(e))
+      toast.show(formatError(e), 'error')
+    }
   } finally {
     downloadingVer.value = null
     downloadProgress.value = 0
@@ -402,6 +455,31 @@ async function handleDownloadVersion(versionId: string) {
     showDownloadModal.value = true
   } else {
     await handleDownloadZip(versionId)
+  }
+}
+
+async function downloadCover() {
+  if (!projects.currentProject?.cover_url) return
+  const url = resolveApiUrl(projects.currentProject.cover_url)
+  if (!url) return
+  const defaultName = (projects.currentProject.title?.replace(/[/\\?%*:|"<>]/g, '_') || 'cover') + '.jpg'
+
+  if ('__TAURI_INTERNALS__' in window) {
+    const dest = await invoke<string | null>('save_file_dialog', { defaultName })
+    if (!dest) return
+    await invoke('download_file', {
+      url,
+      dest,
+      label: 'cover-' + projects.currentProject.id,
+    })
+    toast.show('Обложка сохранена', 'success')
+  } else {
+    const a = document.createElement('a')
+    a.href = url
+    a.download = defaultName
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
   }
 }
 
@@ -451,7 +529,7 @@ function formatSize(bytes: number): string {
       <div class="flex items-start justify-between mb-8">
         <div class="flex items-start gap-4">
           <div
-            class="w-24 h-24 rounded-xl overflow-hidden shrink-0 bg-gradient-to-br from-[#F5F5F7] to-primary/10"
+            class="w-24 h-24 rounded-xl overflow-hidden shrink-0 bg-gradient-to-br from-[#F5F5F7] to-primary/10 group relative"
           >
             <img
               v-if="projects.currentProject.cover_url"
@@ -464,6 +542,16 @@ function formatSize(bytes: number): string {
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
               </svg>
             </div>
+            <button
+              v-if="projects.currentProject.cover_url"
+              class="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity"
+              title="Скачать обложку"
+              @click="downloadCover"
+            >
+              <svg class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+              </svg>
+            </button>
           </div>
           <div>
             <div class="flex items-center gap-3 mb-2">
@@ -552,20 +640,21 @@ function formatSize(bytes: number): string {
       </div>
       </div>
 
-        <div class="flex items-center gap-2">
-          <UiButton variant="secondary" @click="showShareModal = true">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+        <div class="flex items-center gap-1.5">
+          <UiButton variant="secondary" size="sm" class="!rounded-xl" @click="showShareModal = true">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
             </svg>
             Поделиться
           </UiButton>
           <NuxtLink :to="`/projects/${projects.currentProject.id}/activity`">
-            <UiButton variant="secondary">Журнал</UiButton>
+            <UiButton variant="secondary" size="sm" class="!rounded-xl">Журнал</UiButton>
           </NuxtLink>
           <NuxtLink :to="`/projects/${projects.currentProject.id}/info`">
-            <UiButton variant="secondary">Настройки</UiButton>
+            <UiButton variant="secondary" size="sm" class="!rounded-xl">Настройки</UiButton>
           </NuxtLink>
-          <UiButton v-if="isOwner" variant="danger" @click="handleDelete">Удалить</UiButton>
+          <div class="w-px h-5 bg-border/50 mx-0.5" />
+          <UiButton v-if="isOwner" variant="danger" size="sm" class="!rounded-xl" @click="handleDelete">Удалить</UiButton>
         </div>
       </div>
 
@@ -613,23 +702,28 @@ function formatSize(bytes: number): string {
       </div>
 
       <!-- Quick Save -->
-      <div class="card p-4 mb-8">
+      <div class="rounded-2xl bg-surface-elevated ring-1 ring-border/40 shadow-[0_1px_4px_rgba(0,0,0,0.06)] px-5 py-4 mb-8">
         <div class="flex items-center justify-between">
           <div class="min-w-0 flex-1">
-            <h3 class="text-sm font-medium">Папка проекта</h3>
-            <p class="text-xs text-secondary mt-0.5 truncate flex items-center gap-1.5">
+            <div class="flex items-center gap-2 mb-0.5">
+              <svg class="w-4 h-4 text-secondary/40" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+              </svg>
+              <h3 class="text-[15px] font-medium text-foreground">Папка проекта</h3>
+            </div>
+            <p class="text-[13px] text-secondary/50 mt-1 truncate flex items-center gap-1.5">
               {{ projects.currentProject.my_project_path || projects.currentProject.project_path || 'Не указана' }}
-              <span v-if="!isDesktopApp" class="text-[10px] px-1.5 py-0.5 rounded bg-btn-secondary/60 text-secondary/60">только в приложении</span>
+              <span v-if="!isDesktopApp" class="text-[10px] px-1.5 py-0.5 rounded bg-btn-secondary/60 text-secondary/40">только в приложении</span>
             </p>
           </div>
             <div class="flex items-center gap-2 shrink-0 ml-4">
               <UiButton
                 v-if="!projects.currentProject.my_project_path && !projects.currentProject.project_path"
                 size="sm"
-                :loading="savingQuick"
                 @click="handlePickFolder"
+                class="!rounded-xl"
               >
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
                 </svg>
                 Выбрать папку
@@ -638,209 +732,206 @@ function formatSize(bytes: number): string {
                 <UiButton
                   size="sm"
                   variant="ghost"
-                  :loading="savingQuick"
                   @click="handlePickFolder"
+                  class="!rounded-xl"
                 >
-                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                   </svg>
                   Сменить
                 </UiButton>
-                <UiButton
-                  size="sm"
-                  :loading="savingQuick"
-                  @click="handleQuickSave"
-                >
-                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-                  </svg>
-                  Быстрое сохранение
-                </UiButton>
               </template>
             </div>
         </div>
-        <div v-if="savingQuick && downloadProgress > 0" class="mt-3">
-          <div class="flex items-center justify-between text-xs text-secondary mb-1">
+        <div v-if="quickVersionId && savingQuick" class="mt-4">
+          <div class="flex items-center justify-between text-[12px] text-secondary/50 mb-1.5">
             <span>Сохранение версии...</span>
-            <span>{{ downloadProgress }}%</span>
+            <span>{{ downloadProgress > 0 ? downloadProgress + '%' : '' }}</span>
           </div>
           <div class="h-1 rounded-full bg-btn-secondary overflow-hidden">
-            <div class="h-full rounded-full bg-primary transition-all duration-300" :style="{ width: downloadProgress + '%' }"></div>
+            <div class="h-full rounded-full bg-primary transition-all duration-300" :class="downloadProgress > 0 ? '' : 'animate-pulse'" :style="{ width: downloadProgress > 0 ? downloadProgress + '%' : '30%' }"></div>
           </div>
+          <button
+            type="button"
+            class="mt-1 text-xs text-danger/70 hover:text-danger transition-colors"
+            @click="cancelQuickSave"
+          >
+            Отмена
+          </button>
         </div>
       </div>
 
-      <!-- Version Timeline -->
-      <div class="flex items-center justify-between mb-6">
-        <h2 class="text-xl font-semibold flex items-center gap-2">
-          <svg class="w-5 h-5 text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          История версий
-        </h2>
-        <UiButton @click="showVersionModal = true">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-          </svg>
-          Новая версия
-        </UiButton>
-      </div>
+<!-- Version Timeline -->
+<div class="mb-10">
+  <div class="flex items-center justify-between mb-7">
+    <div class="flex items-baseline gap-3">
+      <h2 class="text-[17px] font-semibold text-foreground tracking-tight">История версий</h2>
+      <span class="text-[13px] text-secondary/40 font-medium tabular-nums">{{ versions.items.length }}</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <UiButton size="sm" variant="secondary" class="!rounded-xl" @click="showVersionModal = true">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+        </svg>
+        Новая версия
+      </UiButton>
+      <UiButton size="sm" class="!rounded-xl" @click="handleQuickSave">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+      </svg>
+      Быстрое сохранение
+    </UiButton>
+  </div>
+</div>
 
-      <!-- Timeline -->
-      <div v-if="versions.items.length" class="relative">
-        <div class="absolute left-[19.5px] top-3 bottom-3 w-px bg-btn-secondary" />
-
-        <TransitionGroup name="timeline" tag="div" class="relative">
+<!-- Timeline -->
+  <div v-if="versions.items.length">
+    <div class="timeline-container">
+      <!-- Timeline Line -->
+      <div class="timeline-line"></div>
+      
+      <TransitionGroup name="timeline" tag="div" class="relative space-y-3">
+        <div
+          v-for="(version, idx) in versions.sortedVersions"
+          :key="version.id"
+          class="relative"
+          :style="{ opacity: version.is_current ? 1 : Math.max(0.45, 1 - (idx * 0.1)) }"
+        >
+          <!-- Timeline Dot -->
+          <div class="timeline-dot" :class="{ 'is-current': version.is_current }">
+            <div class="timeline-dot-inner"></div>
+          </div>
+          
+          <!-- Card -->
           <div
-            v-for="(version, idx) in versions.sortedVersions"
-            :key="version.id"
-            class="relative pl-14 pb-6 last:pb-0"
-            :style="{ opacity: version.is_current ? 1 : Math.max(0.4, 1 - (idx * 0.12)) }"
+            class="relative overflow-hidden transition-all duration-300 ease-out version-card-modern"
+            :class="[
+              version.is_current ? 'is-current' : '',
+              !version.is_current && 'hover:shadow-lg hover:-translate-y-0.5'
+            ]"
           >
-            <!-- Timeline dot -->
-            <div
-              class="absolute left-3.5 top-4 w-3 h-3 rounded-full border-2 z-10 transition-all duration-300"
-              :class="version.is_current
-                ? 'bg-primary border-primary dot-pulse'
-                : 'bg-surface-elevated border-border'"
-            />
+          <div class="px-4 py-4">
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex items-center gap-3 min-w-0 flex-1">
+                <!-- Version badge -->
+                <div class="version-badge">
+                  {{ version.version_number }}
+                </div>
 
-            <!-- Card -->
-            <div
-              class="card p-4 transition-all duration-200"
-              :class="{
-                'hover:shadow-md': !version.is_current,
-                'ring-1 ring-primary/30 shadow-[0_0_20px_rgba(0,122,255,0.08)]': version.is_current,
-              }"
-            >
-              <!-- Header -->
-              <div class="flex items-start justify-between gap-3 mb-2">
-                <div class="flex items-center gap-3 min-w-0">
-                  <div
-                    class="w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 transition-all duration-200"
-                    :class="version.is_current ? 'bg-primary text-white shadow-sm' : 'bg-btn-secondary text-secondary'"
-                  >
-                    v{{ version.version_number }}
-                  </div>
-                  <div class="min-w-0">
-                    <!-- Edit mode -->
-                    <template v-if="editVersionId === version.id">
-                      <input
-                        v-model="editTitle"
-                        class="w-full rounded-md input-control px-2.5 py-1 text-sm font-medium mb-1.5 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                        placeholder="Название версии"
-                      />
-                      <textarea
-                        v-model="editDesc"
-                        class="w-full rounded-md input-control px-2.5 py-1 text-xs resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
-                        rows="2"
-                        placeholder="Описание (необязательно)"
-                      />
-                      <div class="flex items-center gap-1.5 mt-1.5">
-                        <UiButton size="xs" @click="saveEdit">Сохранить</UiButton>
-                        <UiButton size="xs" variant="ghost" @click="cancelEdit">Отмена</UiButton>
-                      </div>
-                    </template>
-                    <!-- View mode -->
-                    <template v-else>
+                <div class="min-w-0 flex-1">
+                  <!-- Edit mode -->
+                  <template v-if="editVersionId === version.id">
+                    <input
+                      v-model="editTitle"
+                      class="w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm font-medium mb-2 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      placeholder="Название версии"
+                    />
+                    <textarea
+                      v-model="editDesc"
+                      class="w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-xs resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      rows="2"
+                      placeholder="Описание"
+                    />
+                    <div class="flex items-center gap-2 mt-2">
+                      <UiButton size="xs" @click="saveEdit">Сохранить</UiButton>
+                      <UiButton size="xs" variant="ghost" @click="cancelEdit">Отмена</UiButton>
+                    </div>
+                  </template>
+                  <!-- View mode -->
+                  <template v-else>
+                    <div class="flex items-center gap-2 flex-wrap">
                       <NuxtLink
                         :to="`/projects/${projects.currentProject?.id}/versions/${version.id}`"
-                        class="font-medium text-sm hover:text-primary transition-colors no-underline"
+                        class="text-sm font-semibold text-foreground hover:text-primary transition-colors no-underline leading-tight"
                       >
                         {{ version.title || `Версия ${version.version_number}` }}
                       </NuxtLink>
-                      <p v-if="version.description" class="text-xs text-secondary mt-0.5 line-clamp-1">
-                        {{ version.description }}
-                      </p>
-                    </template>
-                  </div>
-                </div>
-
-                <div v-if="version.is_current && editVersionId !== version.id" class="shrink-0">
-                  <span class="text-[10px] font-semibold uppercase tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded-full">Текущая</span>
+                      <span
+                        v-if="version.is_current && editVersionId !== version.id"
+                        class="current-badge"
+                      >Текущая</span>
+                    </div>
+                    <p v-if="version.description" class="text-sm text-secondary mt-1 leading-relaxed line-clamp-1">
+                      {{ version.description }}
+                    </p>
+                  </template>
                 </div>
               </div>
 
-              <!-- Meta + Actions -->
-              <div class="flex items-center justify-between mt-2 pt-2 border-t border-separator">
-                <div class="flex items-center gap-3 text-xs text-secondary">
-                  <span class="flex items-center gap-1">
-                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    {{ new Date(version.created_at).toLocaleDateString() }}
-                  </span>
-                  <span v-if="version.file_size">
-                    <span class="flex items-center gap-1">
-                      <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      {{ (version.file_size / 1024 / 1024).toFixed(1) }} MB
-                    </span>
-                  </span>
-                </div>
-
-                <div class="flex items-center gap-1">
-                  <!-- <div v-if="downloadingVer === version.id" class="flex items-center gap-1.5 text-xs text-secondary mr-1">
-                    <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-{{ downloadProgress }}%
-                  </div> -->
-                  <!-- Edit btn -->
-                  <button
-                    v-if="editVersionId !== version.id"
-                    class="p-1.5 rounded-md text-secondary hover:text-primary hover:bg-border/50 transition-colors"
-                    title="Редактировать"
-                    @click="startEdit(version)"
-                  >
-                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                  </button>
-                  <!-- Download btn -->
-                  <UiButton variant="ghost" size="xs" @click="handleDownloadVersion(version.id)">
-                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                  </UiButton>
-                  <!-- Set current btn -->
-                  <button
-                    v-if="!version.is_current && editVersionId !== version.id"
-                    class="p-1.5 rounded-md text-secondary hover:text-primary hover:bg-border/50 transition-colors"
-                    title="Сделать текущей"
-                    @click="handleSetCurrent(version.id)"
-                  >
-                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </button>
-                  <!-- Delete btn -->
-                  <button
-                    v-if="editVersionId !== version.id"
-                    class="p-1.5 rounded-md text-secondary hover:text-danger hover:bg-border/50 transition-colors"
-                    title="Удалить"
-                    @click="handleDeleteVersion(version.id, version.title)"
-                  >
-                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                </div>
+              <!-- Actions -->
+              <div v-if="editVersionId !== version.id" class="flex items-center gap-1 shrink-0">
+                <button
+                  class="version-action-btn"
+                  title="Редактировать"
+                  @click="startEdit(version)"
+                >
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
+                <button
+                  v-if="!version.is_current"
+                  class="version-action-btn"
+                  title="Сделать текущей"
+                  @click="handleSetCurrent(version.id)"
+                >
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </button>
+                <button
+                  class="version-action-btn"
+                  title="Скачать"
+                  @click="handleDownloadVersion(version.id)"
+                >
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </button>
+                <button
+                  class="version-action-btn danger"
+                  title="Удалить"
+                  @click="handleDeleteVersion(version.id, version.title)"
+                >
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
               </div>
             </div>
-          </div>
-        </TransitionGroup>
-      </div>
 
-      <div v-else class="card p-8 text-center">
-        <svg class="w-12 h-12 mx-auto text-secondary mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        <p class="font-medium">Пока нет версий</p>
-        <p class="text-sm text-secondary mt-1">Сохраните первую версию проекта</p>
+            <!-- Meta row -->
+            <div class="flex items-center gap-4 mt-3 pt-3 border-t border-border/30">
+              <span class="flex items-center gap-1.5 text-xs text-secondary">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                {{ new Date(version.created_at).toLocaleDateString() }}
+              </span>
+              <span v-if="version.file_size" class="flex items-center gap-1.5 text-xs text-secondary">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                {{ (version.file_size / 1024 / 1024).toFixed(1) }} MB
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
+    </TransitionGroup>
+    </div>
+  </div>
+
+  <div v-else class="py-16 text-center">
+    <div class="w-14 h-14 mx-auto rounded-2xl bg-btn-secondary/50 flex items-center justify-center mb-4">
+      <svg class="w-6 h-6 text-secondary/30" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    </div>
+    <p class="text-[15px] font-medium text-secondary/60">Пока нет версий</p>
+    <p class="text-[13px] text-secondary/40 mt-1">Сохраните первую версию проекта</p>
+  </div>
+</div>
     </template>
 
     <!-- Error fallback -->
@@ -935,7 +1026,7 @@ function formatSize(bytes: number): string {
 
 <style scoped>
 .timeline-enter-active {
-  transition: all 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
+  transition: all 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 .timeline-leave-active {
@@ -944,31 +1035,23 @@ function formatSize(bytes: number): string {
 
 .timeline-enter-from {
   opacity: 0;
-  transform: translateY(20px);
+  transform: scale(0.96) translateY(16px);
 }
 
 .timeline-leave-to {
   opacity: 0;
-  transform: translateX(-20px);
+  transform: scale(0.96) translateX(-20px);
 }
 
 .timeline-move {
-  transition: transform 0.4s ease;
+  transition: transform 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
-.dot-pulse {
-  box-shadow: 0 0 0 0 rgba(0, 122, 255, 0.5);
-  animation: dot-pulse 2s ease-in-out infinite;
+.version-card-apple {
+  transition: all 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
-@keyframes dot-pulse {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgba(0, 122, 255, 0.4);
-  }
-  50% {
-    box-shadow: 0 0 0 6px rgba(0, 122, 255, 0);
-  }
+.version-card-apple:hover {
+  transform: translateY(-1px);
 }
-
-
 </style>

@@ -33,6 +33,7 @@ class User(Base):
     referrals_count: Mapped[int] = mapped_column(default=0)
     storage_limit: Mapped[int] = mapped_column(BigInteger, default=10_737_418_240)  # 10 GB
     storage_used: Mapped[int] = mapped_column(BigInteger, default=0)
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

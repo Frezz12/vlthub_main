@@ -10,6 +10,7 @@ export interface UploadEntry {
   phase: string
   status: 'archiving' | 'uploading' | 'complete' | 'error'
   errorMessage?: string
+  onCancel?: () => void
 }
 
 const uploads = reactive<Record<string, UploadEntry>>({})
@@ -58,7 +59,7 @@ function initGlobalListener() {
 export function useUploadProgress() {
   initGlobalListener()
 
-  function registerUpload(versionId: string, projectId: string, folderName: string) {
+  function registerUpload(versionId: string, projectId: string, folderName: string, onCancel?: () => void) {
     uploads[versionId] = {
       id: versionId,
       versionId,
@@ -67,6 +68,7 @@ export function useUploadProgress() {
       progress: 0,
       phase: 'archive',
       status: 'archiving',
+      onCancel,
     }
   }
 

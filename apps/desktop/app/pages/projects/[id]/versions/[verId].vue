@@ -33,6 +33,7 @@ const showDownloadModal = ref(false)
 const downloadVersionId = ref<string | null>(null)
 
 const isDesktopApp = computed(() => !!(window as any).__TAURI_INTERNALS__)
+const apiBase = typeof __API_BASE_URL__ !== 'undefined' && __API_BASE_URL__ ? __API_BASE_URL__ : 'http://localhost:8000'
 
 const projects = useProjectsStore()
 
@@ -104,7 +105,10 @@ async function handleDownloadZip(savePath: string | null = null) {
         return
       }
 
-      dlStore.registerDownload(verId.value, fullPath)
+      dlStore.registerDownload(verId.value, fullPath, () => {
+        invoke('cancel_download', { label: verId.value }).catch(() => {})
+        dlStore.removeDownload(verId.value)
+      })
 
       const unlisten = await import('@tauri-apps/api/event').then(m =>
         m.listen<{ label: string; progress: number }>('download-progress', (e) => {
@@ -149,9 +153,14 @@ async function handleDownloadZip(savePath: string | null = null) {
       toast.show('Скачивание начато', 'success')
     }
   } catch (e: any) {
-    console.error('download error', e)
-    dlStore.markError(verId.value, formatError(e))
-    toast.show(formatError(e), 'error')
+    if (e?.toString?.()?.includes?.('cancelled')) {
+      dlStore.removeDownload(verId.value)
+      toast.show('Скачивание отменено', 'info')
+    } else {
+      console.error('download error', e)
+      dlStore.markError(verId.value, formatError(e))
+      toast.show(formatError(e), 'error')
+    }
   } finally {
     downloadingFileId.value = null
     fileDownloadProgress.value = 0

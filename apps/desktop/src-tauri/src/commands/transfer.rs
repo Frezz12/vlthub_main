@@ -1,69 +1,109 @@
 use std::fs::{self, File};
-use std::io::{Read, Write};
+use std::io::Read;
 use std::path::Path;
 use std::time::Instant;
+use std::sync::{Arc, atomic::{AtomicBool, Ordering}, OnceLock, Mutex};
+use std::collections::HashMap;
 use tauri::{AppHandle, Emitter};
 use walkdir::WalkDir;
 use sha2::{Sha256, Digest};
+use tokio::io::AsyncWriteExt;
+
+fn cancel_map() -> &'static Mutex<HashMap<String, Arc<AtomicBool>>> {
+    static MAP: OnceLock<Mutex<HashMap<String, Arc<AtomicBool>>>> = OnceLock::new();
+    MAP.get_or_init(|| Mutex::new(HashMap::new()))
+}
 
 #[tauri::command]
 pub async fn download_file(app: AppHandle, url: String, dest: String, label: String, token: Option<String>) -> Result<(), String> {
-    tokio::task::spawn_blocking(move || -> Result<(), String> {
-        let client = reqwest::blocking::Client::builder()
-            .tcp_nodelay(true)
-            .redirect(reqwest::redirect::Policy::none())
-            .build()
-            .map_err(|e| e.to_string())?;
+    let cancelled = Arc::new(AtomicBool::new(false));
+    {
+        let mut map = cancel_map().lock().map_err(|e| e.to_string())?;
+        map.insert(label.clone(), cancelled.clone());
+    }
 
-        let mut req_builder = client.get(&url);
-        if let Some(ref t) = token {
-            req_builder = req_builder.header("Authorization", format!("Bearer {}", t));
+    let result = download_inner(&app, &url, &dest, &label, &token, &cancelled).await;
+
+    {
+        let mut map = cancel_map().lock().map_err(|e| e.to_string())?;
+        map.remove(&label);
+    }
+
+    result
+}
+
+async fn download_inner(
+    app: &AppHandle,
+    url: &str,
+    dest: &str,
+    label: &str,
+    token: &Option<String>,
+    cancelled: &AtomicBool,
+) -> Result<(), String> {
+    let client = reqwest::Client::builder()
+        .tcp_nodelay(true)
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let mut req_builder = client.get(url);
+    if let Some(ref t) = token {
+        req_builder = req_builder.header("Authorization", format!("Bearer {}", t));
+    }
+
+    let mut response = req_builder.send().await.map_err(|e| e.to_string())?;
+    let status = response.status();
+    if !status.is_success() {
+        let body = response.text().await.unwrap_or_default();
+        return Err(format!("HTTP {}: {}", status, body));
+    }
+
+    let total = response.content_length().unwrap_or(0);
+    let mut file = tokio::fs::File::create(dest).await.map_err(|e| e.to_string())?;
+    let mut downloaded: u64 = 0;
+    let mut last_pct: u32 = 0;
+    let mut last_emit = Instant::now();
+    let throttle = std::time::Duration::from_millis(500);
+
+    loop {
+        if cancelled.load(Ordering::Relaxed) {
+            let _ = tokio::fs::remove_file(dest).await;
+            return Err("Download cancelled".into());
         }
-
-        let response = req_builder.send().map_err(|e| e.to_string())?;
-        let status = response.status();
-        if !status.is_success() {
-            let body = response.text().unwrap_or_default();
-            return Err(format!("HTTP {}: {}", status, body));
-        }
-
-        let total = response.content_length().unwrap_or(0);
-
-        let mut file = File::create(&dest).map_err(|e| e.to_string())?;
-        let mut downloaded: u64 = 0;
-        let mut last_pct: u32 = 0;
-        let mut last_emit = Instant::now();
-        let throttle = std::time::Duration::from_millis(500);
-
-        let mut reader = response;
-        let mut buf = [0u8; 1_048_576];
-        loop {
-            let n = reader.read(&mut buf).map_err(|e| e.to_string())?;
-            if n == 0 {
-                break;
-            }
-            file.write_all(&buf[..n]).map_err(|e| e.to_string())?;
-            downloaded += n as u64;
-            if total > 0 {
-                let pct = ((downloaded as f64 / total as f64) * 99.0) as u32;
-                if pct != last_pct && last_emit.elapsed() >= throttle {
-                    last_pct = pct;
-                    last_emit = Instant::now();
-                    let _ = app.emit("download-progress", serde_json::json!({
-                        "label": &label,
-                        "progress": pct,
-                    }));
+        let chunk = response.chunk().await.map_err(|e| e.to_string())?;
+        match chunk {
+            Some(bytes) => {
+                file.write_all(&bytes).await.map_err(|e| e.to_string())?;
+                downloaded += bytes.len() as u64;
+                if total > 0 {
+                    let pct = ((downloaded as f64 / total as f64) * 99.0) as u32;
+                    if pct != last_pct && last_emit.elapsed() >= throttle {
+                        last_pct = pct;
+                        last_emit = Instant::now();
+                        let _ = app.emit("download-progress", serde_json::json!({
+                            "label": label,
+                            "progress": pct,
+                        }));
+                    }
                 }
             }
+            None => break,
         }
-        let _ = app.emit("download-progress", serde_json::json!({
-            "label": &label,
-            "progress": 100,
-        }));
-        Ok(())
-    })
-    .await
-    .map_err(|e| format!("Download task failed: {}", e))?
+    }
+    let _ = app.emit("download-progress", serde_json::json!({
+        "label": label,
+        "progress": 100,
+    }));
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn cancel_download(label: String) -> Result<(), String> {
+    let map = cancel_map().lock().map_err(|e| e.to_string())?;
+    if let Some(cancelled) = map.get(&label) {
+        cancelled.store(true, Ordering::Relaxed);
+    }
+    Ok(())
 }
 
 fn should_exclude(relative_path: &str) -> bool {

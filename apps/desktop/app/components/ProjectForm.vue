@@ -16,6 +16,7 @@ const status = ref('in_progress')
 const description = ref('')
 const tags = ref('')
 const isPublic = ref(false)
+const chatEnabled = ref(false)
 const coverFile = ref<File | null>(null)
 const coverPreview = ref('')
 const loading = ref(false)
@@ -123,6 +124,7 @@ async function handleSubmit() {
       description: description.value || null,
       tags: tags.value ? tags.value.split(',').map((t) => t.trim()) : [],
       is_public: isPublic.value,
+      chat_enabled: chatEnabled.value,
     })
     if (coverFile.value) {
       const api = useApi()
@@ -285,6 +287,18 @@ async function handleSubmit() {
       </div>
       <input
         v-model="isPublic"
+        type="checkbox"
+        class="rounded border-border text-primary focus:ring-primary w-4 h-4"
+      />
+    </label>
+
+    <label class="flex items-center justify-between p-4 rounded-xl bg-input-bg cursor-pointer">
+      <div>
+        <span class="text-sm font-medium block">Чат проекта</span>
+        <span class="text-xs text-secondary">Общий чат для участников проекта</span>
+      </div>
+      <input
+        v-model="chatEnabled"
         type="checkbox"
         class="rounded border-border text-primary focus:ring-primary w-4 h-4"
       />

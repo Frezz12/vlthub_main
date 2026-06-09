@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
@@ -176,6 +176,16 @@ async def update_user_settings(
     user.settings = body.settings
     await session.commit()
     return user.settings
+
+
+@router.post("/me/heartbeat")
+async def user_heartbeat(
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    user.last_seen_at = datetime.now(timezone.utc)
+    await session.commit()
+    return {"ok": True}
 
 
 @router.get("/search", response_model=list[UserSearchResult])

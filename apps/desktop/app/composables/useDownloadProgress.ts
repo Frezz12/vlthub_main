@@ -7,6 +7,7 @@ export interface DownloadEntry {
   progress: number
   status: 'downloading' | 'complete' | 'error'
   errorMessage?: string
+  onCancel?: () => void
 }
 
 const downloads = reactive<Record<string, DownloadEntry>>({})
@@ -38,12 +39,13 @@ function initGlobalListener() {
 export function useDownloadProgress() {
   initGlobalListener()
 
-  function registerDownload(id: string, fileName: string) {
+  function registerDownload(id: string, fileName: string, onCancel?: () => void) {
     downloads[id] = {
       id,
       fileName,
       progress: 0,
       status: 'downloading',
+      onCancel,
     }
   }
 

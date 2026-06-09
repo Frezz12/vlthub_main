@@ -30,6 +30,7 @@ class ProjectCreate(BaseModel):
     project_path: str | None = None
     tags: list[str] = []
     is_public: bool = False
+    chat_enabled: bool = False
 
 
 class ProjectUpdate(BaseModel):
@@ -49,6 +50,7 @@ class ProjectUpdate(BaseModel):
     is_archived: bool | None = None
     is_favorite: bool | None = None
     tags: list[str] | None = None
+    chat_enabled: bool | None = None
 
 
 class CollaboratorOut(BaseModel):
@@ -80,6 +82,7 @@ class ProjectOut(BaseModel):
     is_public: bool = False
     is_archived: bool
     is_favorite: bool = False
+    chat_enabled: bool = False
     created_at: datetime
     updated_at: datetime
     tags: list[str] = []

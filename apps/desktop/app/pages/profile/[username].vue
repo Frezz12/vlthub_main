@@ -234,6 +234,11 @@ async function toggleFollow() {
   }
 }
 
+const router = useRouter()
+function writeToUser(userId: string) {
+  router.push(`/messages?user=${userId}`)
+}
+
 onMounted(loadProfile)
 
 </script>
@@ -343,6 +348,12 @@ onMounted(loadProfile)
                 >
                   {{ profile.is_following ? 'Отписаться' : 'Подписаться' }}
                 </UiButton>
+                <UiButton v-if="!isOwnProfile" size="sm" variant="secondary" @click="writeToUser(profile.id)">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+                  </svg>
+                  Написать
+                </UiButton>
                 <UiButton variant="secondary" size="sm" @click="copyProfileLink">
                   <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
@@ -403,7 +414,7 @@ onMounted(loadProfile)
                     v-for="p in profile.projects.slice(0, 4)"
                     :key="p.id"
                     :to="`/projects/${p.id}`"
-                    class="group rounded-2xl overflow-hidden border dark:border-white/5 border-border/15 hover:border-primary/20 hover:shadow-lg transition-all no-underline"
+                    class="group rounded-2xl overflow-hidden border dark:border-transparent border-border/15 hover:border-primary/20 hover:shadow-lg transition-all no-underline"
                   >
                     <div
                       class="aspect-square relative overflow-hidden"
@@ -615,10 +626,10 @@ onMounted(loadProfile)
     <UiModal v-model="followersModal" title="Подписчики" max-width="420px">
       <div v-if="listLoading" class="py-8 text-center text-secondary text-sm">Загрузка...</div>
       <ul v-else-if="followersList.length" class="max-h-80 overflow-y-auto divide-y divide-separator -mx-2">
-        <li v-for="u in followersList" :key="u.id">
+        <li v-for="u in followersList" :key="u.id" class="flex items-center gap-3 px-2 py-3">
           <NuxtLink
             :to="`/profile/${u.username}`"
-            class="flex items-center gap-3 px-2 py-3 hover:bg-surface rounded-xl transition-colors no-underline"
+            class="flex items-center gap-3 flex-1 min-w-0 no-underline"
             @click="followersModal = false"
           >
             <UiAvatarRing :src="u.avatar_url" :alt="u.nickname" size="sm" :badge="(u as any).active_badge" />
@@ -630,6 +641,15 @@ onMounted(loadProfile)
               <p class="text-xs text-secondary">@{{ u.username }}</p>
             </div>
           </NuxtLink>
+          <button
+            class="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-secondary/50 hover:text-primary hover:bg-primary/5 transition-colors"
+            title="Написать"
+            @click="followersModal = false; router.push(`/messages?user=${u.id}`)"
+          >
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+            </svg>
+          </button>
         </li>
       </ul>
       <p v-else class="py-8 text-center text-secondary text-sm">Пока нет подписчиков</p>
@@ -639,10 +659,10 @@ onMounted(loadProfile)
     <UiModal v-model="followingModal" title="Подписки" max-width="420px">
       <div v-if="listLoading" class="py-8 text-center text-secondary text-sm">Загрузка...</div>
       <ul v-else-if="followingList.length" class="max-h-80 overflow-y-auto divide-y divide-separator -mx-2">
-        <li v-for="u in followingList" :key="u.id">
+        <li v-for="u in followingList" :key="u.id" class="flex items-center gap-3 px-2 py-3">
           <NuxtLink
             :to="`/profile/${u.username}`"
-            class="flex items-center gap-3 px-2 py-3 hover:bg-surface rounded-xl transition-colors no-underline"
+            class="flex items-center gap-3 flex-1 min-w-0 no-underline"
             @click="followingModal = false"
           >
             <UiAvatarRing :src="u.avatar_url" :alt="u.nickname" size="sm" :badge="(u as any).active_badge" />
@@ -654,6 +674,15 @@ onMounted(loadProfile)
               <p class="text-xs text-secondary">@{{ u.username }}</p>
             </div>
           </NuxtLink>
+          <button
+            class="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-secondary/50 hover:text-primary hover:bg-primary/5 transition-colors"
+            title="Написать"
+            @click="followingModal = false; router.push(`/messages?user=${u.id}`)"
+          >
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+            </svg>
+          </button>
         </li>
       </ul>
       <p v-else class="py-8 text-center text-secondary text-sm">Нет подписок</p>

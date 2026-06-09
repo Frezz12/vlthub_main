@@ -22,6 +22,10 @@ onUnmounted(() => {
 function dismiss(id: string) {
   const t = dismissTimers.get(id)
   if (t) { clearTimeout(t); dismissTimers.delete(id) }
+  const entry = allDownloads.value.find(d => d.id === id)
+  if (entry && entry.status === 'downloading') {
+    entry.onCancel?.()
+  }
   removeDownload(id)
 }
 
@@ -39,7 +43,7 @@ const phaseLabel: Record<string, string> = {
         <div
           v-for="dl in allDownloads"
           :key="dl.id"
-          class="pointer-events-auto bg-[#1c1c1e] border border-white/10 rounded-xl shadow-2xl overflow-hidden transition-all duration-300"
+          class="pointer-events-auto bg-[#1c1c1e] border border-white/10 rounded-xl shadow-2xl overflow-hidden transition-all duration-300 dark:border-transparent"
           :class="{
             'border-red-500/40': dl.status === 'error',
             'border-emerald-500/40': dl.status === 'complete',
@@ -99,10 +103,12 @@ const phaseLabel: Record<string, string> = {
 
             <button
               type="button"
-              class="shrink-0 p-1 rounded-md text-white/30 hover:text-white/60 hover:bg-white/5 transition-colors"
+              class="shrink-0 rounded-md text-white/30 hover:text-white/60 hover:bg-white/5 transition-colors"
+              :class="dl.status === 'downloading' ? 'px-2 py-1 text-xs text-danger/70 hover:text-danger' : 'p-1'"
               @click="dismiss(dl.id)"
             >
-              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <span v-if="dl.status === 'downloading'">Отмена</span>
+              <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>

@@ -71,6 +71,7 @@ async def list_projects(
             owner=owners.get(p.owner_id),
             access_granted_at=access_granted_map.get(p.id),
             is_favorite=p.is_favorite,
+            chat_enabled=p.chat_enabled,
         ))
     return ProjectListOut(items=items, total=total, page=page, limit=limit)
 
@@ -91,6 +92,7 @@ async def create_project(
         description=project.description, lyrics=project.lyrics, cover_url=project.cover_url,
         daw_type=project.daw_type, project_path=project.project_path,
         is_public=project.is_public, is_archived=project.is_archived, is_favorite=project.is_favorite,
+        chat_enabled=project.chat_enabled,
         created_at=project.created_at, updated_at=project.updated_at,
         tags=tags, version_count=0, total_size=0,
         owner=_user_to_brief(user),
@@ -128,6 +130,7 @@ async def upload_project_cover(
         description=project.description, lyrics=project.lyrics, cover_url=project.cover_url,
         daw_type=project.daw_type, project_path=project.project_path,
         is_public=project.is_public, is_archived=project.is_archived, is_favorite=project.is_favorite,
+        chat_enabled=project.chat_enabled,
         created_at=project.created_at, updated_at=project.updated_at,
         tags=tags, version_count=version_count, total_size=total_size, collaborators=[CollaboratorOut(**c) for c in collabs],
         owner=owner,
@@ -189,6 +192,7 @@ async def get_project(
         description=project.description, lyrics=project.lyrics, cover_url=project.cover_url,
         daw_type=project.daw_type, project_path=project.project_path,
         is_public=project.is_public, is_archived=project.is_archived, is_favorite=project.is_favorite,
+        chat_enabled=project.chat_enabled,
         created_at=project.created_at, updated_at=project.updated_at,
         tags=tags, version_count=version_count, total_size=total_size, collaborators=[CollaboratorOut(**c) for c in collabs],
         owner=owner, access_granted_at=access_granted_at, my_project_path=my_path,
@@ -297,6 +301,7 @@ async def update_project(
         description=project.description, lyrics=project.lyrics, cover_url=project.cover_url,
         daw_type=project.daw_type, project_path=project.project_path,
         is_public=project.is_public, is_archived=project.is_archived, is_favorite=project.is_favorite,
+        chat_enabled=project.chat_enabled,
         created_at=project.created_at, updated_at=project.updated_at,
         tags=tags, version_count=version_count, total_size=total_size, collaborators=[CollaboratorOut(**c) for c in collabs],
         owner=owner,

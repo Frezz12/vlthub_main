@@ -1,6 +1,7 @@
 export default defineNuxtConfig({
   devtools: { enabled: true },
   ssr: process.env.NUXT_BUILD_TARGET === "static" ? false : true,
+  devServer: { host: "0.0.0.0", port: 3000 },
 
   modules: ["@pinia/nuxt", "@nuxtjs/tailwindcss"],
 

@@ -301,6 +301,7 @@ export function useProjectArchiver() {
   async function archiveProject(
     files: File[],
     onProgress?: (pct: number) => void,
+    signal?: AbortSignal,
   ): Promise<{ blob: Blob; sha256: string; totalSize: number }> {
     const JSZip = (await import("jszip")).default;
     const zip = new JSZip();
@@ -308,6 +309,7 @@ export function useProjectArchiver() {
     const toArchive = files.filter(shouldInclude);
 
     for (let i = 0; i < toArchive.length; i++) {
+      if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
       const file = toArchive[i];
       const arrayBuffer = await file.arrayBuffer();
       const relativePath = file.webkitRelativePath || file.name;
@@ -316,6 +318,8 @@ export function useProjectArchiver() {
         onProgress(Math.round(((i + 1) / toArchive.length) * 50));
       }
     }
+
+    if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 
     const blob = await zip.generateAsync({
       type: "blob",
@@ -327,6 +331,8 @@ export function useProjectArchiver() {
         }
       },
     });
+
+    if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 
     const hashBuffer = await crypto.subtle.digest(
       "SHA-256",
@@ -347,6 +353,7 @@ export function useProjectArchiver() {
     accessToken: string,
     onProgress: (pct: number) => void,
     folderName?: string,
+    signal?: AbortSignal,
   ): Promise<void> {
     const chunkSize = 8 * 1024 * 1024;
     const totalSize = blob.size;
@@ -362,6 +369,7 @@ export function useProjectArchiver() {
     const fileName = `${baseName}_${ts}.zip`;
 
     for (let i = 0; i < totalChunks; i++) {
+      if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
       const start = i * chunkSize;
       const end = Math.min(start + chunkSize, totalSize);
       const chunk = blob.slice(start, end);
@@ -380,6 +388,7 @@ export function useProjectArchiver() {
           method: "PUT",
           headers: { Authorization: `Bearer ${accessToken}` },
           body: formData,
+          signal,
         },
       );
 

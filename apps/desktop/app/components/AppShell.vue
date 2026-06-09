@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { formatError } from '~/utils/formatError'
+import ChatWidget from '~/components/ChatWidget.vue'
 const auth = useAuthStore()
+const projects = useProjectsStore()
 const route = useRoute()
 
 const appVersion = ref('0.8.20')
@@ -11,15 +13,33 @@ const isAuthPage = computed(() =>
 
 const showSidebar = computed(() => !isAuthPage.value && auth.isAuthenticated)
 const isDownloadPage = computed(() => route.path === '/download')
+
+const sidebarCollapsed = useState('sidebarCollapsed', () => true)
+const sidebarHovered = useState('sidebarHovered', () => false)
+const sidebarExpanded = computed(() => !sidebarCollapsed.value || sidebarHovered.value)
+const mainMargin = computed(() => {
+  if (!showSidebar.value) return ''
+  return sidebarExpanded.value ? 'ml-56' : 'ml-16'
+})
 const isLandingPage = computed(() => isAuthPage.value || isDownloadPage.value)
 
-type UpdateState = 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error'
+const projectId = computed(() => {
+  const match = route.path.match(/^\/projects\/([^/]+)/)
+  return match?.[1] || null
+})
 
-const updateState = ref<UpdateState>('idle')
-const updateVersion = ref('')
+const isProjectPage = computed(() => !!projectId.value)
+const showChat = computed(() => {
+  if (!isProjectPage.value) return false
+  if (!projects.currentProject) return true
+  return projects.currentProject.chat_enabled !== false
+})
+
+const updateState = useState<'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error'>('updateState', () => 'idle')
+const updateVersion = useState('updateVersion', () => '')
 const downloadProgress = ref<{ current: number; total: number } | null>(null)
 const updateError = ref('')
-const showUpdateModal = ref(false)
+const showUpdateModal = useState('showUpdateModal', () => false)
 
 let updateHandle: any = null
 
@@ -137,7 +157,7 @@ if (import.meta.client) {
       <AppSidebar v-if="showSidebar" />
       <main
         class="flex-1 transition-all duration-300"
-        :class="showSidebar ? 'ml-16' : ''"
+        :class="mainMargin"
       >
         <div v-if="isAuthPage" class="flex items-center justify-center min-h-[calc(100vh-3.5rem)]">
           <slot />
@@ -145,6 +165,7 @@ if (import.meta.client) {
         <slot v-else />
       </main>
     </div>
+    <ChatWidget v-if="showChat" :project-id="projectId!" />
     <UploadProgressToast />
     <DownloadProgressToast />
     <button

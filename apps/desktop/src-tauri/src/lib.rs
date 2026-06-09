@@ -1,6 +1,7 @@
 mod commands;
 mod daemon;
 
+use crate::commands::cancel_download;
 use commands::{
     archive_project, calculate_sha256, clean_temp_files, download_file, extract_archive,
     get_file_info, get_temp_dir, list_dir_recursive, open_devtools, open_in_browser,
@@ -28,6 +29,7 @@ pub fn run() {
             save_file_dialog,
             upload_chunk,
             download_file,
+            cancel_download,
             resume_upload,
             upload_archive_from_path,
             start_daw_watcher,

@@ -33,3 +33,10 @@ async def get_project_or_404(
             if not is_collaborator.scalar_one_or_none():
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     return project
+
+
+async def require_chat_enabled(
+    project: Project = Depends(get_project_or_404),
+) -> None:
+    if not project.chat_enabled:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Chat is not enabled for this project")

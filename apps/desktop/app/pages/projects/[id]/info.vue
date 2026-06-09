@@ -20,6 +20,7 @@ const beatmaker = ref('')
 
 const is_archived = ref(false)
 const is_public = ref(false)
+const chat_enabled = ref(false)
 
 const uploadingCover = ref(false)
 const coverFile = ref<File | null>(null)
@@ -81,6 +82,7 @@ onMounted(async () => {
     tags.value = p.tags?.join(', ') || ''
     is_archived.value = p.is_archived
     is_public.value = p.is_public
+    chat_enabled.value = p.chat_enabled ?? false
   }
   document.addEventListener('click', handleClickOutside)
 })
@@ -99,6 +101,7 @@ async function handleSave() {
       description: description.value || null,
       tags: tags.value ? tags.value.split(',').map((t) => t.trim()) : [],
       is_public: is_public.value,
+      chat_enabled: chat_enabled.value,
     })
     toast.show('Проект обновлён', 'success')
   } catch (e: any) {
@@ -232,6 +235,18 @@ async function handleLeave() {
           </div>
           <input
             v-model="is_public"
+            type="checkbox"
+            class="rounded border-border text-primary focus:ring-primary w-4 h-4"
+          />
+        </label>
+
+        <label class="flex items-center justify-between p-4 rounded-xl bg-input-bg cursor-pointer">
+          <div>
+            <span class="text-sm font-medium block">Чат проекта</span>
+            <span class="text-xs text-secondary">Общий чат для участников проекта</span>
+          </div>
+          <input
+            v-model="chat_enabled"
             type="checkbox"
             class="rounded border-border text-primary focus:ring-primary w-4 h-4"
           />

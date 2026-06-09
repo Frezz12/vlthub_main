@@ -73,7 +73,7 @@ function pathTail(path: string, max = 56) {
         <div
           v-for="toast in topToasts"
           :key="toast.id"
-          class="pointer-events-auto bg-surface-elevated shadow-2xl ring-1 ring-black/5 dark:ring-white/10 transition-all duration-300 overflow-hidden rounded-xl border-l-4"
+          class="pointer-events-auto bg-surface-elevated shadow-2xl ring-1 ring-black/5 dark:ring-transparent transition-all duration-300 overflow-hidden rounded-xl border-l-4"
           :style="{ borderLeftColor: `var(${typeConfig[toast.type].cssVar})` }"
         >
           <template v-if="toast.download">
@@ -164,7 +164,7 @@ function pathTail(path: string, max = 56) {
         <div
           v-for="toast in bottomToasts"
           :key="toast.id"
-          class="pointer-events-auto bg-surface-elevated shadow-2xl ring-1 ring-black/5 dark:ring-white/10 transition-all duration-300 overflow-hidden rounded-xl border-l-4"
+          class="pointer-events-auto bg-surface-elevated shadow-2xl ring-1 ring-black/5 dark:ring-transparent transition-all duration-300 overflow-hidden rounded-xl border-l-4"
           :style="{ borderLeftColor: `var(${typeConfig[toast.type].cssVar})` }"
         >
           <template v-if="toast.download">

@@ -35,6 +35,7 @@ class UserOut(BaseModel):
     social_links: list[SocialLinkOut] = []
     settings: dict[str, Any] = {}
     is_admin: bool = False
+    last_seen_at: datetime | None = None
     referral_code: str = ""
     referrals_count: int = 0
     storage_limit: int = 10_737_418_240

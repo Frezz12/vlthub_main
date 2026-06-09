@@ -1,9 +1,36 @@
 <script setup lang="ts">
 const auth = useAuthStore()
 const route = useRoute()
+const dm = useDMStore()
+
+const updateState = useState('updateState', () => 'idle')
+const updateVersion = useState('updateVersion', () => '')
+const showUpdateModal = useState('showUpdateModal', () => false)
+
+function openUpdate() {
+  showUpdateModal.value = true
+}
+
+let heartbeatTimer: ReturnType<typeof setInterval> | null = null
+
+onMounted(() => {
+  dm.fetchRooms()
+  dm.heartbeat()
+  heartbeatTimer = setInterval(() => {
+    if (document.visibilityState === 'visible') dm.heartbeat()
+  }, 60000)
+})
+
+onUnmounted(() => {
+  if (heartbeatTimer) clearInterval(heartbeatTimer)
+})
+
+watch(() => route.path, () => {
+  dm.fetchRooms()
+})
 
 const isCollapsed = useState('sidebarCollapsed', () => true)
-const isHovered = ref(false)
+const isHovered = useState('sidebarHovered', () => false)
 
 const isExpanded = computed(() => !isCollapsed.value || isHovered.value)
 
@@ -18,6 +45,7 @@ function onMouseLeave() {
 const navItems = computed(() => [
   { label: 'Профиль', icon: 'person', to: auth.user?.username ? `/profile/${auth.user.username}` : '/settings' },
   { label: 'Проекты', icon: 'folder', to: '/' },
+  { label: 'Чаты', icon: 'chat', to: '/messages' },
   { label: 'Пользователи', icon: 'users', to: '/users' },
 ])
 
@@ -38,7 +66,7 @@ function isActive(path: string) {
 
 <template>
   <aside
-    class="fixed left-0 top-14 bottom-0 z-30 flex flex-col overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] glass border-r border-separator"
+    class="fixed left-0 top-14 bottom-0 z-30 flex flex-col overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] bg-surface-elevated border-r border-separator"
     :class="isExpanded ? 'w-56' : 'w-16'"
     @mouseenter="onMouseEnter"
     @mouseleave="onMouseLeave"
@@ -75,10 +103,22 @@ function isActive(path: string) {
           <svg v-else-if="item.icon === 'users'" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
           </svg>
+          <svg v-else-if="item.icon === 'chat'" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+          </svg>
+          <span
+            v-if="item.icon === 'chat' && dm.unreadCount > 0"
+            class="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center leading-none"
+          >
+            {{ dm.unreadCount > 99 ? '99+' : dm.unreadCount }}
+          </span>
         </span>
 
         <Transition name="sidebar-fade">
-          <span v-if="isExpanded" class="relative whitespace-nowrap">{{ item.label }}</span>
+          <span v-if="isExpanded" class="relative whitespace-nowrap">
+            {{ item.label }}
+            <span v-if="item.label === 'Чаты'" class="text-[8px] font-bold uppercase tracking-wider text-primary align-middle ml-1 px-1 py-0.5 rounded-md bg-primary/10 leading-none">Beta</span>
+          </span>
         </Transition>
       </NuxtLink>
 
@@ -153,6 +193,23 @@ function isActive(path: string) {
         </Transition>
       </NuxtLink>
     </nav>
+
+    <!-- Update available button -->
+    <Transition name="sidebar-fade">
+      <button
+        v-if="updateState === 'available'"
+        class="mx-2.5 mb-1 flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-primary text-white text-sm font-medium transition-all duration-200 hover:bg-primary/90 active:scale-[0.97] shadow-sm"
+        :class="!isExpanded ? 'justify-center px-0 mx-1' : ''"
+        @click="openUpdate"
+      >
+        <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+        </svg>
+        <Transition name="sidebar-fade">
+          <span v-if="isExpanded" class="whitespace-nowrap">Обновить до {{ updateVersion }}</span>
+        </Transition>
+      </button>
+    </Transition>
 
     <!-- User section -->
     <div
