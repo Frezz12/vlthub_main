@@ -74,7 +74,7 @@ let _pendingContents = new Set<string>()
 
 const BASE = typeof __API_BASE_URL__ !== 'undefined' && __API_BASE_URL__
   ? __API_BASE_URL__
-  : 'http://localhost:8000'
+  : 'https://vlthub.ru'
 
 const AUDIO_PERSIST_KEY = 'dm_audio_state'
 

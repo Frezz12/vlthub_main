@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 const API_BASE =
   typeof __API_BASE_URL__ !== "undefined" && __API_BASE_URL__
     ? __API_BASE_URL__
-    : "http://localhost:8000";
+    : "https://vlthub.ru";
 
 const DAW_SIGNATURES: Record<string, RegExp> = {
   "Logic Pro": /\.logicx$/i,

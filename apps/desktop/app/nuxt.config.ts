@@ -24,31 +24,31 @@ export default defineNuxtConfig({
 
   nitro: {
     devProxy: {
-      "/api": process.env.NUXT_PUBLIC_API_BASE_URL || "http://localhost:8000",
+      "/api": process.env.NUXT_PUBLIC_API_BASE_URL || "https://vlthub.ru",
     },
   },
 
   vite: {
     define: {
       __API_BASE_URL__: JSON.stringify(
-        process.env.NUXT_PUBLIC_API_BASE_URL || "http://localhost:8000",
+        process.env.NUXT_PUBLIC_API_BASE_URL || "https://vlthub.ru",
       ),
     },
     server: {
       proxy: {
         "/api": {
           target:
-            process.env.NUXT_PUBLIC_API_BASE_URL || "http://localhost:8000",
+            process.env.NUXT_PUBLIC_API_BASE_URL || "https://vlthub.ru",
           changeOrigin: true,
         },
         "/uploads": {
           target:
-            process.env.NUXT_PUBLIC_API_BASE_URL || "http://localhost:8000",
+            process.env.NUXT_PUBLIC_API_BASE_URL || "https://vlthub.ru",
           changeOrigin: true,
         },
         "/downloads": {
           target:
-            process.env.NUXT_PUBLIC_API_BASE_URL || "http://localhost:8000",
+            process.env.NUXT_PUBLIC_API_BASE_URL || "https://vlthub.ru",
           changeOrigin: true,
         },
       },
@@ -58,7 +58,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       apiBaseUrl:
-        process.env.NUXT_PUBLIC_API_BASE_URL || "http://localhost:8000",
+        process.env.NUXT_PUBLIC_API_BASE_URL || "https://vlthub.ru",
     },
   },
 

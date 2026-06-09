@@ -47,7 +47,7 @@ let wsReconnectTimer: ReturnType<typeof setTimeout> | null = null
 
 const BASE = typeof __API_BASE_URL__ !== 'undefined' && __API_BASE_URL__
   ? __API_BASE_URL__
-  : 'http://localhost:8000'
+  : 'https://vlthub.ru'
 
 export const useChatStore = defineStore('chat', {
   state: (): ChatState => ({
